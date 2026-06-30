@@ -1,0 +1,13 @@
+{
+  "name": "airbnb-manager-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API local do Airbnb Manager — reservas, despesas e fechamento financeiro",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

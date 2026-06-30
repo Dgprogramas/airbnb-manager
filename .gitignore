@@ -1,0 +1,25 @@
+# Dependências (caso entrem em sprints futuras)
+node_modules/
+
+# Banco SQLite gerado automaticamente em runtime
+backend/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Variáveis de ambiente / segredos
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
