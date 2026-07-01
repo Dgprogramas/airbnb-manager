@@ -1,6 +1,7 @@
 'use strict';
 
 const reservations = require('../repositories/reservations');
+const icalSync = require('../services/ical-sync');
 
 async function listReservations(req, res, { query }, { sendJson }) {
   const result = reservations.list({
@@ -25,4 +26,10 @@ async function updateReservation(req, res, { params }, { sendJson, readJsonBody 
   sendJson(res, 200, updated);
 }
 
-module.exports = { listReservations, createReservation, updateReservation };
+async function syncReservations(req, res, ctx, { sendJson, readJsonBody }) {
+  const body = await readJsonBody(req);
+  const result = await icalSync.syncFromIcal({ icalUrl: body.icalUrl });
+  sendJson(res, 200, result);
+}
+
+module.exports = { listReservations, createReservation, updateReservation, syncReservations };

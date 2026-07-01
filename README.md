@@ -3,12 +3,12 @@
 Aplicação local (com UI em React, a partir da Sprint 4) para automatizar a
 gestão de reservas, cadastro no condomínio e fechamento financeiro do Airbnb.
 
-## Status: Sprint 2 concluída — Fechamento financeiro
+## Status: Sprint 3 concluída — Sync com o iCal do Airbnb
 
-Sprints 1 e 2 concluídas. O que existe é só o **backend** (API): CRUD de
-reservas/despesas/configurações e o endpoint de fechamento financeiro mensal.
-A interface visual entra na Sprint 4. Por enquanto, testa-se via `curl` ou
-Postman.
+Sprints 1 a 3 concluídas. O que existe é só o **backend** (API): CRUD de
+reservas/despesas/configurações, fechamento financeiro mensal e sincronização
+de reservas a partir do calendário (iCal) do Airbnb. A interface visual entra
+na Sprint 4. Por enquanto, testa-se via `curl` ou Postman.
 
 ### Stack desta sprint
 
@@ -40,6 +40,10 @@ POST   /api/reservations
   body: { guestName, checkinDate, checkoutDate, grossAmount }
 PATCH  /api/reservations/:id
   body: campos a atualizar, ex: { condoRegistered: true }
+POST   /api/reservations/sync
+  body: { icalUrl? }  # usa settings.icalUrl se não informado
+  lê o iCal do Airbnb e cria reservas 'pending' a partir das datas;
+  não duplica (dedup pelo UID do evento)
 ```
 
 **Despesas**
@@ -92,7 +96,8 @@ backend/
     │   ├── expenses.js
     │   └── settings.js
     ├── services/
-    │   └── finance.js              # cálculo do fechamento mensal
+    │   ├── finance.js              # cálculo do fechamento mensal
+    │   └── ical-sync.js            # busca e interpreta o iCal do Airbnb
     └── routes/
         ├── reservations.js
         ├── expenses.js
@@ -102,6 +107,6 @@ backend/
 
 ## Próximas sprints
 
-- **Sprint 3:** sincronização automática com o iCal do Airbnb
-- **Sprint 4:** setup do React + primeira tela (Reservas)
+- **Sprint 4:** setup do React (Vite) + primeira tela (Reservas)
 - **Sprint 5:** telas de Despesas e Fechamento Mensal
+- **Sprint 6:** tela de Configurações + navegação

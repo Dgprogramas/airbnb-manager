@@ -55,7 +55,8 @@ backend/src/
 │   ├── expenses.js
 │   └── settings.js
 ├── services/          # regras de negócio que combinam repositórios
-│   └── finance.js     # fechamento financeiro (Sprint 2)
+│   ├── finance.js     # fechamento financeiro (Sprint 2)
+│   └── ical-sync.js   # sync do iCal do Airbnb (Sprint 3)
 └── routes/            # handlers HTTP: validam request, chamam repo/service,
     │                  # respondem via sendJson
     ├── reservations.js
@@ -88,8 +89,8 @@ settings:     host_split_percent (padrão 30), owner_name (padrão 'Pai'), ical_
 |---|---|---|
 | 1 | Backend: SQLite + CRUD de reservas/despesas/settings via API REST | ✅ Concluída |
 | 2 | Backend: fechamento financeiro (`GET /api/finance/closing`) — receita − despesas, split host%/dono% | ✅ Concluída |
-| 3 | Backend: sync com iCal do Airbnb (`POST /api/reservations/sync`) — cria reservas `pending` a partir das datas (iCal só traz datas, sem nome/valor) | 🔜 Próxima |
-| 4 | Frontend: React (Vite) + tela de Reservas (listar, sincronizar, completar pendências) | Planejada |
+| 3 | Backend: sync com iCal do Airbnb (`POST /api/reservations/sync`) — cria reservas `pending` a partir das datas (iCal só traz datas, sem nome/valor) | ✅ Concluída |
+| 4 | Frontend: React (Vite) + tela de Reservas (listar, sincronizar, completar pendências) | 🔜 Próxima |
 | 5 | Frontend: telas de Despesas e Fechamento Mensal | Planejada |
 | 6 | Frontend: tela de Configurações + navegação | Planejada |
 | 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | Planejada |

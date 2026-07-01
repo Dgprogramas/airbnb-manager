@@ -17,6 +17,7 @@ const routes = [
 
   ['GET', ['api', 'reservations'], reservationRoutes.listReservations],
   ['POST', ['api', 'reservations'], reservationRoutes.createReservation],
+  ['POST', ['api', 'reservations', 'sync'], reservationRoutes.syncReservations],
   ['PATCH', ['api', 'reservations', ':id'], reservationRoutes.updateReservation],
 
   ['GET', ['api', 'expenses'], expenseRoutes.listExpenses],
