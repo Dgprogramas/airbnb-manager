@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Check, Plus, RefreshCw, Settings as SettingsIcon, X } from 'lucide-react';
+import { Check, Pencil, Plus, RefreshCw, Settings as SettingsIcon, X } from 'lucide-react';
 import type { Reservation } from '../types';
 import * as api from '../api';
 
@@ -18,7 +18,8 @@ const btnPrimary =
   'inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60';
 const btnSecondary =
   'inline-flex items-center gap-1.5 rounded-lg bg-elevated px-3.5 py-2 text-sm font-medium text-content hover:opacity-80';
-const btnLink = 'inline-flex items-center gap-1 text-sm text-brand hover:underline';
+const btnGhost =
+  'inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-content hover:bg-elevated';
 const inputCls =
   'rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-content outline-none focus:ring-2 focus:ring-brand/40';
 const labelCls = 'flex flex-col gap-1 text-xs text-muted';
@@ -318,11 +319,6 @@ export default function Reservas() {
                           Completa
                         </span>
                       )}
-                      {r.source === 'airbnb-ical' && (
-                        <span className="ml-1.5 rounded-full border border-brand px-1.5 py-px text-[11px] text-brand">
-                          Airbnb
-                        </span>
-                      )}
                     </td>
                     <td className={`${td} text-center`}>
                       <input
@@ -340,52 +336,60 @@ export default function Reservas() {
                     </td>
                     <td className={td}>
                       {r.status === 'pending' && (
-                        <button className={btnLink} onClick={() => startComplete(r)}>
-                          <Check className="h-3.5 w-3.5" />
+                        <button className={btnGhost} onClick={() => startComplete(r)}>
+                          <Pencil className="h-3.5 w-3.5" />
                           Completar
                         </button>
                       )}
                     </td>
                   </tr>
                   {completingId === r.id && (
-                    <tr className="bg-amber-500/5">
-                      <td className={td} colSpan={8}>
-                        <form
-                          className="flex flex-wrap items-center gap-2"
-                          onSubmit={(e) => handleComplete(e, r.id)}
-                        >
-                          <span className="text-sm text-muted">Completar pendência:</span>
-                          <input
-                            className={inputCls}
-                            placeholder="Nome do hóspede"
-                            value={completeForm.guestName}
-                            onChange={(e) =>
-                              setCompleteForm({ ...completeForm, guestName: e.target.value })
-                            }
-                            required
-                          />
-                          <input
-                            type="number"
-                            step="0.01"
-                            className={inputCls}
-                            placeholder="Valor (R$)"
-                            value={completeForm.grossAmount}
-                            onChange={(e) =>
-                              setCompleteForm({ ...completeForm, grossAmount: e.target.value })
-                            }
-                          />
-                          <button type="submit" className={btnPrimary}>
-                            <Check className="h-4 w-4" />
-                            Salvar
-                          </button>
-                          <button
-                            type="button"
-                            className={btnLink}
-                            onClick={() => setCompletingId(null)}
+                    <tr>
+                      <td className="border-b border-line p-0" colSpan={8}>
+                        <div className="animate-reveal m-3 rounded-lg border border-line bg-page p-4">
+                          <p className="mb-3 text-sm font-medium">Completar pendência</p>
+                          <form
+                            className="flex flex-wrap items-end gap-3"
+                            onSubmit={(e) => handleComplete(e, r.id)}
                           >
-                            Cancelar
-                          </button>
-                        </form>
+                            <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-muted">
+                              Nome do hóspede
+                              <input
+                                className={inputCls}
+                                value={completeForm.guestName}
+                                onChange={(e) =>
+                                  setCompleteForm({ ...completeForm, guestName: e.target.value })
+                                }
+                                required
+                              />
+                            </label>
+                            <label className="flex w-40 flex-col gap-1 text-xs text-muted">
+                              Valor (R$)
+                              <input
+                                type="number"
+                                step="0.01"
+                                className={inputCls}
+                                value={completeForm.grossAmount}
+                                onChange={(e) =>
+                                  setCompleteForm({ ...completeForm, grossAmount: e.target.value })
+                                }
+                              />
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className={btnSecondary}
+                                onClick={() => setCompletingId(null)}
+                              >
+                                Cancelar
+                              </button>
+                              <button type="submit" className={btnPrimary}>
+                                <Check className="h-4 w-4" />
+                                Salvar
+                              </button>
+                            </div>
+                          </form>
+                        </div>
                       </td>
                     </tr>
                   )}
