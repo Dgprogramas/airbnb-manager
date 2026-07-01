@@ -33,6 +33,8 @@ Construída em **sprints pequenas e incrementais**, cada uma com critério de
 
 ## Como rodar
 
+**Backend** (terminal 1):
+
 ```bash
 cd backend
 npm install   # só na primeira vez (ou quando mudarem as dependências)
@@ -45,6 +47,18 @@ Sobe em `http://localhost:3001`. O banco é criado automaticamente em
 `ExperimentalWarning: SQLite is an experimental feature` é esperado. A raiz `/`
 não tem rota; os endpoints ficam sob `/api/...`. Reinicie o servidor após
 mudar o código do backend (o Node não recarrega sozinho).
+
+**Frontend** (terminal 2, a partir da Sprint 4):
+
+```bash
+cd frontend
+npm install   # só na primeira vez
+npm run dev
+```
+
+Abre em `http://localhost:5173`. O Vite recarrega sozinho ao salvar. Chamadas
+a `/api/...` são redirecionadas para o backend (3001) via proxy — por isso os
+dois precisam estar rodando ao mesmo tempo.
 
 ## Padrão de código do backend
 
@@ -73,6 +87,26 @@ Fluxo: `routes/` (Express Router) → `services/` (quando há regra de negócio)
 ou `repositories/` → banco. Erros lançados sobem para o handler de erro central
 no `server.js`, que responde JSON com o status apropriado.
 
+## Padrão de código do frontend
+
+```
+frontend/
+├── vite.config.ts     # proxy /api -> :3001
+├── index.html
+└── src/
+    ├── main.tsx        # ponto de entrada (createRoot)
+    ├── App.tsx         # layout + navegação (telas entram aqui)
+    ├── index.css       # estilos globais (CSS puro, sem lib de UI)
+    ├── types.ts        # interfaces espelhando as respostas da API
+    ├── api.ts          # funções fetch para o backend (1 por endpoint)
+    └── pages/          # 1 arquivo por tela
+        └── Reservas.tsx
+```
+
+Telas em `pages/` chamam as funções de `api.ts`; sem gerenciador de estado
+externo (só `useState`/`useEffect`). Novas telas: criar em `pages/` e ligar no
+`App.tsx`.
+
 ## Modelo de dados
 
 ```
@@ -95,8 +129,8 @@ settings:     host_split_percent (padrão 30), owner_name (padrão 'Pai'), ical_
 | 1 | Backend: SQLite + CRUD de reservas/despesas/settings via API REST | ✅ Concluída |
 | 2 | Backend: fechamento financeiro (`GET /api/finance/closing`) — receita − despesas, split host%/dono% | ✅ Concluída |
 | 3 | Backend: sync com iCal do Airbnb (`POST /api/reservations/sync`) — cria reservas `pending` a partir das datas (iCal só traz datas, sem nome/valor) | ✅ Concluída |
-| 4 | Frontend: React (Vite) + tela de Reservas (listar, sincronizar, completar pendências) | 🔜 Próxima |
-| 5 | Frontend: telas de Despesas e Fechamento Mensal | Planejada |
+| 4 | Frontend: React (Vite) + tela de Reservas (listar, sincronizar, completar pendências) | ✅ Concluída |
+| 5 | Frontend: telas de Despesas e Fechamento Mensal | 🔜 Próxima |
 | 6 | Frontend: tela de Configurações + navegação | Planejada |
 | 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | Planejada |
 | 8 | RPA (Playwright) do cadastro no condomínio, disparado pela UI | Planejada |

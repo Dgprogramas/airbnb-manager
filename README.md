@@ -3,12 +3,12 @@
 Aplicação local (com UI em React, a partir da Sprint 4) para automatizar a
 gestão de reservas, cadastro no condomínio e fechamento financeiro do Airbnb.
 
-## Status: Sprint 3 concluída — Sync com o iCal do Airbnb
+## Status: Sprint 4 concluída — Frontend (tela de Reservas)
 
-Sprints 1 a 3 concluídas. O que existe é só o **backend** (API): CRUD de
-reservas/despesas/configurações, fechamento financeiro mensal e sincronização
-de reservas a partir do calendário (iCal) do Airbnb. A interface visual entra
-na Sprint 4. Por enquanto, testa-se via `curl` ou Postman.
+Sprints 1 a 4 concluídas. **Backend** (API) com CRUD de reservas/despesas/
+configurações, fechamento financeiro mensal e sincronização com o iCal do
+Airbnb. **Frontend** em React + Vite + TypeScript com a primeira tela
+(Reservas): listar, sincronizar com o Airbnb e completar pendências.
 
 ### Stack do backend
 
@@ -18,19 +18,39 @@ na Sprint 4. Por enquanto, testa-se via `curl` ou Postman.
 
 ### Como rodar
 
+Precisa de **dois terminais** (backend e frontend rodando ao mesmo tempo).
+
+**Terminal 1 — backend:**
+
 ```bash
 cd backend
 npm install   # só na primeira vez
 node src/server.js
 ```
 
-Servidor sobe em `http://localhost:3001`. O banco SQLite é criado
-automaticamente em `backend/data/airbnb-manager.db` na primeira execução.
-Reinicie o servidor após alterar o código do backend.
+Sobe em `http://localhost:3001`. O banco SQLite é criado automaticamente em
+`backend/data/airbnb-manager.db` na primeira execução. Reinicie após alterar
+o código do backend.
+
+**Terminal 2 — frontend:**
+
+```bash
+cd frontend
+npm install   # só na primeira vez
+npm run dev
+```
+
+Abre em `http://localhost:5173`. É essa a tela que você usa; ela fala com o
+backend via proxy `/api`. O Vite recarrega sozinho ao salvar.
 
 > Se aparecer `ExperimentalWarning: SQLite is an experimental feature`,
 > é esperado — é uma feature nova do Node, mas estável o suficiente para
 > uso local.
+
+### Stack do frontend
+
+- **React 18 + Vite + TypeScript**
+- CSS puro (sem biblioteca de UI)
 
 ### Endpoints disponíveis
 
