@@ -42,6 +42,7 @@ export default function Reservas() {
   const [form, setForm] = useState(EMPTY_FORM);
 
   const [completingId, setCompletingId] = useState<number | null>(null);
+  const [closingPanel, setClosingPanel] = useState(false);
   const [completeForm, setCompleteForm] = useState({ guestName: '', grossAmount: '' });
 
   const [showConfig, setShowConfig] = useState(false);
@@ -135,11 +136,26 @@ export default function Reservas() {
   }
 
   function startComplete(r: Reservation) {
+    setClosingPanel(false);
     setCompletingId(r.id);
     setCompleteForm({
       guestName: r.guestName.startsWith('Reserva Airbnb') ? '' : r.guestName,
       grossAmount: r.grossAmount ? String(r.grossAmount) : '',
     });
+  }
+
+  // Fecha o painel com animação de saída (a remoção real ocorre no onAnimationEnd).
+  function closePanel() {
+    setClosingPanel(true);
+  }
+
+  // Clicar em "Completar": abre; se já estiver aberto naquela linha, fecha (toggle).
+  function toggleComplete(r: Reservation) {
+    if (completingId === r.id && !closingPanel) {
+      closePanel();
+    } else {
+      startComplete(r);
+    }
   }
 
   async function handleComplete(e: FormEvent, id: number) {
@@ -153,6 +169,7 @@ export default function Reservas() {
         status: 'complete',
       });
       setCompletingId(null);
+      setClosingPanel(false);
       setMessage('Reserva completada.');
       await load();
     } catch (e2) {
@@ -336,7 +353,7 @@ export default function Reservas() {
                     </td>
                     <td className={td}>
                       {r.status === 'pending' && (
-                        <button className={btnGhost} onClick={() => startComplete(r)}>
+                        <button className={btnGhost} onClick={() => toggleComplete(r)}>
                           <Pencil className="h-3.5 w-3.5" />
                           Completar
                         </button>
@@ -346,7 +363,17 @@ export default function Reservas() {
                   {completingId === r.id && (
                     <tr>
                       <td className="border-b border-line p-0" colSpan={8}>
-                        <div className="animate-reveal m-3 rounded-lg border border-line bg-page p-4">
+                        <div
+                          className={`m-3 rounded-lg border border-line bg-page p-4 ${
+                            closingPanel ? 'animate-reveal-out' : 'animate-reveal'
+                          }`}
+                          onAnimationEnd={() => {
+                            if (closingPanel) {
+                              setCompletingId(null);
+                              setClosingPanel(false);
+                            }
+                          }}
+                        >
                           <p className="mb-3 text-sm font-medium">Completar pendência</p>
                           <form
                             className="flex flex-wrap items-end gap-3"
@@ -376,11 +403,7 @@ export default function Reservas() {
                               />
                             </label>
                             <div className="flex gap-2">
-                              <button
-                                type="button"
-                                className={btnSecondary}
-                                onClick={() => setCompletingId(null)}
-                              >
+                              <button type="button" className={btnSecondary} onClick={closePanel}>
                                 Cancelar
                               </button>
                               <button type="submit" className={btnPrimary}>
