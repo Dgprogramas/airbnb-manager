@@ -133,9 +133,52 @@ settings:     host_split_percent (padrão 30), owner_name (padrão 'Pai'), ical_
 | 5 | Frontend: telas de Despesas e Fechamento Mensal | 🔜 Próxima |
 | 6 | Frontend: tela de Configurações + navegação | Planejada |
 | 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | Planejada |
-| 8 | RPA (Playwright) do cadastro no condomínio, disparado pela UI | Planejada |
+| 8 | RPA (Playwright) do cadastro de visitantes no portal do **Condomínio Dedicado**, disparado pela UI | Planejada |
 
 Não implementar funcionalidades de sprints futuras antes da hora.
+
+## Sprint 8 — RPA do Condomínio Dedicado (detalhes)
+
+Automação do cadastro de hóspedes no app do condomínio (**Condomínio
+Dedicado**), disparada pela UI. Ainda **não implementar** — documentação
+levantada com antecedência.
+
+- **Ferramenta:** **Playwright** (headless). O Condomínio Dedicado tem
+  **portal web** (não só app mobile) — confirmado —, então não é preciso
+  Appium nem engenharia reversa da API mobile.
+- **URL de login:**
+  `https://app.condominiodedicado.com.br/morador/default/seguranca/principal`
+- **Formulário de login:** simples — campos **E-mail** e **Senha**, botão
+  **ENTRAR**. Sem captcha visível na tela inicial (validar na prática na hora
+  de implementar).
+- **Funcionalidade alvo:** **"Registro de visitantes"**, dentro da área do
+  morador logado.
+
+### Fluxo planejado
+
+1. Playwright abre o navegador (headless) e acessa a URL de login.
+2. Preenche e-mail e senha lidos de **variáveis de ambiente** (nunca
+   hardcoded no código nem versionados no Git).
+3. Clica em **ENTRAR**.
+4. Navega até **Registro de visitantes**.
+5. Preenche os dados do hóspede (nome, datas) vindos de uma reserva já
+   completa no banco (`status = 'complete'`).
+6. Salva o cadastro.
+7. Chama a própria API do projeto: `PATCH /api/reservations/:id`
+   com `{ "condoRegistered": true }`.
+
+### Pontos de atenção
+
+- **Credenciais** do Condomínio Dedicado ficam em um `.env` local, **fora do
+  controle de versão** (adicionar `.env` ao `.gitignore` quando chegarmos
+  nesta sprint).
+- **É o script mais frágil do projeto:** se o Condomínio Dedicado mudar o
+  layout do login ou do formulário de registro de visitantes, os seletores do
+  Playwright quebram e precisam de ajuste.
+- **Termos de uso:** antes de implementar de fato, checar rapidamente os
+  termos do Condomínio Dedicado quanto a automação de acesso. Como é acesso
+  com credencial própria e vínculo legítimo com o condomínio, o risco é baixo,
+  mas convém confirmar.
 
 ## Padrão de commits
 
