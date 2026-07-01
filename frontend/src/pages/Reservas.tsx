@@ -34,6 +34,17 @@ function monthLabel(key: string): string {
   return `${MONTH_NAMES[Number(m) - 1]} de ${y}`;
 }
 
+// Status da ESTADIA, calculado pela data (não é armazenado): a reserva vira
+// "Finalizada" só após as 11:00 do dia do checkout.
+function stayStatus(r: Reservation): { label: string; cls: string } {
+  const now = new Date();
+  const checkin = new Date(`${r.checkinDate}T00:00:00`);
+  const checkout = new Date(`${r.checkoutDate}T11:00:00`);
+  if (now >= checkout) return { label: 'Finalizada', cls: 'bg-neutral-500/15 text-muted' };
+  if (now >= checkin) return { label: 'Em andamento', cls: 'bg-emerald-500/15 text-emerald-500' };
+  return { label: 'Futura', cls: 'bg-blue-500/15 text-blue-500' };
+}
+
 // Agrupa as reservas por mês do check-in, preservando a ordem (a API já
 // devolve ordenado por checkin_date ascendente).
 function groupByMonth(items: Reservation[]): { key: string; rows: Reservation[] }[] {
@@ -204,7 +215,7 @@ export default function Reservas() {
       });
       setCompletingId(null);
       setClosingPanel(false);
-      setMessage('Reserva completada.');
+      setMessage('Dados salvos.');
       await load();
     } catch (e2) {
       setError((e2 as Error).message);
@@ -212,21 +223,24 @@ export default function Reservas() {
   }
 
   function renderRow(r: Reservation) {
+    const stay = stayStatus(r);
+    const needsData = r.status === 'pending';
     return (
       <Fragment key={r.id}>
-        <tr className={r.status === 'pending' ? 'bg-amber-500/5' : ''}>
+        <tr className={needsData ? 'bg-amber-500/5' : ''}>
           <td className={td}>{r.guestName}</td>
           <td className={td}>{formatDate(r.checkinDate)}</td>
           <td className={td}>{formatDate(r.checkoutDate)}</td>
           <td className={td}>{formatMoney(r.grossAmount)}</td>
           <td className={td}>
-            {r.status === 'pending' ? (
-              <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
-                Pendente
-              </span>
-            ) : (
-              <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
-                Completa
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${stay.cls}`}
+            >
+              {stay.label}
+            </span>
+            {needsData && (
+              <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
+                Faltam dados
               </span>
             )}
           </td>
@@ -245,12 +259,10 @@ export default function Reservas() {
             />
           </td>
           <td className={td}>
-            {r.status === 'pending' && (
-              <button className={btnGhost} onClick={() => toggleComplete(r)}>
-                <Pencil className="h-3.5 w-3.5" />
-                Completar
-              </button>
-            )}
+            <button className={btnGhost} onClick={() => toggleComplete(r)}>
+              <Pencil className="h-3.5 w-3.5" />
+              {needsData ? 'Completar' : 'Editar'}
+            </button>
           </td>
         </tr>
         {completingId === r.id && (
@@ -267,7 +279,9 @@ export default function Reservas() {
                   }
                 }}
               >
-                <p className="mb-3 text-sm font-medium">Completar pendência</p>
+                <p className="mb-3 text-sm font-medium">
+                  {needsData ? 'Completar reserva' : 'Editar reserva'}
+                </p>
                 <form
                   className="flex flex-wrap items-end gap-3"
                   onSubmit={(e) => handleComplete(e, r.id)}
@@ -370,7 +384,7 @@ export default function Reservas() {
           checked={pendingOnly}
           onChange={(e) => setPendingOnly(e.target.checked)}
         />
-        Mostrar só pendentes
+        Mostrar só com dados pendentes
       </label>
 
       {message && (

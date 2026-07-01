@@ -122,6 +122,16 @@ expenses:     id, month ('YYYY-MM'),
 settings:     host_split_percent (padrão 30), owner_name (padrão 'Pai'), ical_url
 ```
 
+**Importante — dois conceitos separados de "status":**
+
+- O campo `status` ('pending'|'complete') é sobre **completude dos dados**:
+  `pending` = reserva veio do iCal e ainda **falta preencher** nome/valor;
+  `complete` = dados preenchidos. **Não** significa "estadia finalizada". A
+  reserva é **sempre editável**.
+- O **status da estadia** (Futura → Em andamento → Finalizada) é **derivado da
+  data no frontend** (não é armazenado): vira **Finalizada** só após as **11:00
+  do dia do checkout**. Não confundir com o campo `status`.
+
 ## Roadmap
 
 | Sprint | Objetivo | Status |
