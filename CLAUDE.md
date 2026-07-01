@@ -19,18 +19,23 @@ Construída em **sprints pequenas e incrementais**, cada uma com critério de
 ## Decisões de arquitetura (não mudar sem perguntar)
 
 - **Local, não em nuvem.** Backend e frontend rodam na máquina do usuário.
-- **Backend:** Node.js puro, **sem frameworks** (sem Express) e **zero
-  dependências externas via npm** — só módulos nativos: `node:sqlite`, `http`,
-  `url`, `fs`, `path`. Não rodar `npm install`.
-- **Node.js 22.5+** obrigatório (por causa do `node:sqlite`, módulo
-  experimental mas estável para uso local).
-- **Banco:** SQLite via `node:sqlite` (`DatabaseSync`).
-- **Frontend:** React (a partir da Sprint 4), consumindo a API REST via `fetch`.
+- **Dependências:** abordagem **pragmática** — usar bibliotecas npm quando
+  ajudarem de verdade (não perseguir "zero dependências"). O projeto começou
+  100% nativo e foi modernizado depois.
+- **Backend:** Node.js + **Express** (roteamento), `cors` (CORS) e `node-ical`
+  (parse do iCal). **Node.js 22.5+** obrigatório.
+- **Banco:** SQLite via `node:sqlite` (`DatabaseSync`) — mantido por já
+  funcionar; a API é igual à do `better-sqlite3`, então trocar depois é
+  trivial se necessário.
+- **Frontend:** **React + Vite + TypeScript** (a partir da Sprint 4),
+  consumindo a API REST. Roda em `http://localhost:5173` com proxy `/api`
+  para o backend.
 
 ## Como rodar
 
 ```bash
 cd backend
+npm install   # só na primeira vez (ou quando mudarem as dependências)
 node src/server.js
 ```
 
@@ -38,14 +43,14 @@ Sobe em `http://localhost:3001`. O banco é criado automaticamente em
 `backend/data/airbnb-manager.db` na primeira execução (esse diretório está no
 `.gitignore` — nunca commitar o `.db`). O aviso
 `ExperimentalWarning: SQLite is an experimental feature` é esperado. A raiz `/`
-não tem rota; os endpoints ficam sob `/api/...`.
+não tem rota; os endpoints ficam sob `/api/...`. Reinicie o servidor após
+mudar o código do backend (o Node não recarrega sozinho).
 
 ## Padrão de código do backend
 
 ```
 backend/src/
-├── server.js          # roteador manual: tabela [método, segmentos, handler]
-├── http-helpers.js    # sendJson (JSON + CORS liberado) / readJsonBody
+├── server.js          # app Express: middlewares + monta os routers em /api
 ├── db/
 │   ├── schema.sql     # schema das tabelas
 │   └── connection.js  # conexão SQLite (singleton getDb())
@@ -56,17 +61,17 @@ backend/src/
 │   └── settings.js
 ├── services/          # regras de negócio que combinam repositórios
 │   ├── finance.js     # fechamento financeiro (Sprint 2)
-│   └── ical-sync.js   # sync do iCal do Airbnb (Sprint 3)
-└── routes/            # handlers HTTP: validam request, chamam repo/service,
-    │                  # respondem via sendJson
+│   └── ical-sync.js   # sync do iCal via node-ical (Sprint 3)
+└── routes/            # cada arquivo exporta um express.Router()
     ├── reservations.js
     ├── expenses.js
     ├── settings.js
     └── finance.js
 ```
 
-Fluxo: `routes/` → `services/` (quando há regra de negócio) ou `repositories/`
-→ banco. Handlers recebem `(req, res, { query, params }, { sendJson, readJsonBody })`.
+Fluxo: `routes/` (Express Router) → `services/` (quando há regra de negócio)
+ou `repositories/` → banco. Erros lançados sobem para o handler de erro central
+no `server.js`, que responde JSON com o status apropriado.
 
 ## Modelo de dados
 

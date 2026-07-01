@@ -1,43 +1,54 @@
 'use strict';
 
+const express = require('express');
 const reservations = require('../repositories/reservations');
 const icalSync = require('../services/ical-sync');
 
-async function listReservations(req, res, { query }, { sendJson }) {
+const router = express.Router();
+
+// GET /api/reservations?month=YYYY-MM&pendingOnly=true
+router.get('/', (req, res) => {
   const result = reservations.list({
-    month: query.get('month') || undefined,
-    pendingOnly: query.get('pendingOnly') === 'true',
+    month: req.query.month || undefined,
+    pendingOnly: req.query.pendingOnly === 'true',
   });
-  sendJson(res, 200, result);
-}
+  res.json(result);
+});
 
-async function getReservation(req, res, { params }, { sendJson }) {
-  const reservation = reservations.findById(params.id);
-  if (!reservation) {
-    return sendJson(res, 404, { error: `Reserva #${params.id} não encontrada` });
-  }
-  sendJson(res, 200, reservation);
-}
-
-async function createReservation(req, res, ctx, { sendJson, readJsonBody }) {
-  const body = await readJsonBody(req);
+// POST /api/reservations
+router.post('/', (req, res) => {
+  const body = req.body;
   if (!body.guestName || !body.checkinDate || !body.checkoutDate) {
-    return sendJson(res, 400, { error: 'guestName, checkinDate e checkoutDate são obrigatórios' });
+    return res.status(400).json({ error: 'guestName, checkinDate e checkoutDate são obrigatórios' });
   }
-  const created = reservations.create(body);
-  sendJson(res, 201, created);
-}
+  res.status(201).json(reservations.create(body));
+});
 
-async function updateReservation(req, res, { params }, { sendJson, readJsonBody }) {
-  const body = await readJsonBody(req);
-  const updated = reservations.update(params.id, body);
-  sendJson(res, 200, updated);
-}
+// POST /api/reservations/sync — importa reservas do iCal do Airbnb
+router.post('/sync', async (req, res, next) => {
+  try {
+    const result = await icalSync.syncFromIcal({ icalUrl: req.body.icalUrl });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
-async function syncReservations(req, res, ctx, { sendJson, readJsonBody }) {
-  const body = await readJsonBody(req);
-  const result = await icalSync.syncFromIcal({ icalUrl: body.icalUrl });
-  sendJson(res, 200, result);
-}
+// GET /api/reservations/:id
+router.get('/:id', (req, res) => {
+  const reservation = reservations.findById(req.params.id);
+  if (!reservation) {
+    return res.status(404).json({ error: `Reserva #${req.params.id} não encontrada` });
+  }
+  res.json(reservation);
+});
 
-module.exports = { listReservations, getReservation, createReservation, updateReservation, syncReservations };
+// PATCH /api/reservations/:id
+router.patch('/:id', (req, res) => {
+  if (!reservations.findById(req.params.id)) {
+    return res.status(404).json({ error: `Reserva #${req.params.id} não encontrada` });
+  }
+  res.json(reservations.update(req.params.id, req.body));
+});
+
+module.exports = router;

@@ -1,14 +1,17 @@
 'use strict';
 
+const express = require('express');
 const finance = require('../services/finance');
 
-async function getClosing(req, res, { query }, { sendJson }) {
-  const month = query.get('month') || undefined;
-  if (!month) {
-    return sendJson(res, 400, { error: 'O parâmetro "month" (YYYY-MM) é obrigatório' });
-  }
-  const closing = finance.closeMonth(month);
-  sendJson(res, 200, closing);
-}
+const router = express.Router();
 
-module.exports = { getClosing };
+// GET /api/finance/closing?month=YYYY-MM
+router.get('/closing', (req, res) => {
+  const month = req.query.month;
+  if (!month) {
+    return res.status(400).json({ error: 'O parâmetro "month" (YYYY-MM) é obrigatório' });
+  }
+  res.json(finance.closeMonth(month));
+});
+
+module.exports = router;

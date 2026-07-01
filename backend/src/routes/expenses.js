@@ -1,20 +1,27 @@
 'use strict';
 
+const express = require('express');
 const expenses = require('../repositories/expenses');
 
-async function listExpenses(req, res, { query }, { sendJson }) {
-  const month = query.get('month') || undefined;
-  const result = expenses.list({ month });
-  sendJson(res, 200, result);
-}
+const router = express.Router();
 
-async function createExpense(req, res, ctx, { sendJson, readJsonBody }) {
-  const body = await readJsonBody(req);
+// GET /api/expenses?month=YYYY-MM
+router.get('/', (req, res) => {
+  res.json(expenses.list({ month: req.query.month || undefined }));
+});
+
+// POST /api/expenses
+router.post('/', (req, res) => {
+  const body = req.body;
   if (!body.month || !body.category || body.amount === undefined) {
-    return sendJson(res, 400, { error: 'month, category e amount são obrigatórios' });
+    return res.status(400).json({ error: 'month, category e amount são obrigatórios' });
   }
-  const created = expenses.create(body);
-  sendJson(res, 201, created);
-}
+  if (!expenses.CATEGORIES.includes(body.category)) {
+    return res.status(400).json({
+      error: `Categoria inválida "${body.category}". Use uma de: ${expenses.CATEGORIES.join(', ')}`,
+    });
+  }
+  res.status(201).json(expenses.create(body));
+});
 
-module.exports = { listExpenses, createExpense };
+module.exports = router;

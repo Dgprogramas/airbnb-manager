@@ -1,8 +1,7 @@
 'use strict';
 
-const http = require('http');
-const { URL } = require('url');
-const { sendJson, readJsonBody } = require('./http-helpers');
+const express = require('express');
+const cors = require('cors');
 
 const reservationRoutes = require('./routes/reservations');
 const expenseRoutes = require('./routes/expenses');
@@ -10,79 +9,28 @@ const settingsRoutes = require('./routes/settings');
 const financeRoutes = require('./routes/finance');
 
 const PORT = process.env.PORT || 3001;
+const app = express();
 
-// Cada rota: [método, segmentos do path (':id' = parâmetro), handler]
-const routes = [
-  ['GET', ['api', 'health'], async (req, res) => sendJson(res, 200, { status: 'ok' })],
+app.use(cors()); // app local, sem segredo a proteger
+app.use(express.json());
 
-  ['GET', ['api', 'reservations'], reservationRoutes.listReservations],
-  ['POST', ['api', 'reservations'], reservationRoutes.createReservation],
-  ['POST', ['api', 'reservations', 'sync'], reservationRoutes.syncReservations],
-  ['GET', ['api', 'reservations', ':id'], reservationRoutes.getReservation],
-  ['PATCH', ['api', 'reservations', ':id'], reservationRoutes.updateReservation],
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.use('/api/reservations', reservationRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/finance', financeRoutes);
 
-  ['GET', ['api', 'expenses'], expenseRoutes.listExpenses],
-  ['POST', ['api', 'expenses'], expenseRoutes.createExpense],
-
-  ['GET', ['api', 'settings'], settingsRoutes.getSettings],
-  ['PATCH', ['api', 'settings'], settingsRoutes.updateSettings],
-
-  ['GET', ['api', 'finance', 'closing'], financeRoutes.getClosing],
-];
-
-function matchRoute(method, pathSegments) {
-  for (const [routeMethod, routeSegments, handler] of routes) {
-    if (routeMethod !== method) continue;
-    if (routeSegments.length !== pathSegments.length) continue;
-
-    const params = {};
-    let matched = true;
-
-    for (let i = 0; i < routeSegments.length; i += 1) {
-      const routeSeg = routeSegments[i];
-      const pathSeg = pathSegments[i];
-      if (routeSeg.startsWith(':')) {
-        params[routeSeg.slice(1)] = pathSeg;
-      } else if (routeSeg !== pathSeg) {
-        matched = false;
-        break;
-      }
-    }
-
-    if (matched) return { handler, params };
-  }
-  return null;
-}
-
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const segments = url.pathname.split('/').filter(Boolean);
-
-  if (req.method === 'OPTIONS') {
-    // resposta simples para preflight de CORS (app local consumida pelo React)
-    sendJson(res, 204, {});
-    return;
-  }
-
-  const match = matchRoute(req.method, segments);
-  if (!match) {
-    sendJson(res, 404, { error: `Rota não encontrada: ${req.method} ${url.pathname}` });
-    return;
-  }
-
-  try {
-    await match.handler(
-      req,
-      res,
-      { query: url.searchParams, params: match.params },
-      { sendJson, readJsonBody }
-    );
-  } catch (err) {
-    console.error(err);
-    sendJson(res, 500, { error: err.message });
-  }
+// 404 para qualquer rota não registrada
+app.use((req, res) => {
+  res.status(404).json({ error: `Rota não encontrada: ${req.method} ${req.path}` });
 });
 
-server.listen(PORT, () => {
+// Tratamento centralizado de erros: responde JSON com o status apropriado
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ error: err.message });
+});
+
+app.listen(PORT, () => {
   console.log(`Airbnb Manager API rodando em http://localhost:${PORT}`);
 });

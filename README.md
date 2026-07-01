@@ -10,26 +10,27 @@ reservas/despesas/configurações, fechamento financeiro mensal e sincronizaçã
 de reservas a partir do calendário (iCal) do Airbnb. A interface visual entra
 na Sprint 4. Por enquanto, testa-se via `curl` ou Postman.
 
-### Stack desta sprint
+### Stack do backend
 
-- **Node.js 22.5+** (usa o módulo nativo `node:sqlite` — **zero dependências
-  externas**, não precisa rodar `npm install`)
-- Servidor HTTP nativo (`http` do Node), sem framework
+- **Node.js 22.5+**
+- **Express** (roteamento) + **cors** + **node-ical** (parse do iCal)
+- Banco **SQLite** via `node:sqlite` (`DatabaseSync`)
 
 ### Como rodar
 
 ```bash
 cd backend
+npm install   # só na primeira vez
 node src/server.js
 ```
 
 Servidor sobe em `http://localhost:3001`. O banco SQLite é criado
 automaticamente em `backend/data/airbnb-manager.db` na primeira execução.
+Reinicie o servidor após alterar o código do backend.
 
 > Se aparecer `ExperimentalWarning: SQLite is an experimental feature`,
 > é esperado — é uma feature nova do Node, mas estável o suficiente para
-> uso local. Se sua versão do Node for anterior à 22.5, me avisa que troco
-> para `better-sqlite3` via npm.
+> uso local.
 
 ### Endpoints disponíveis
 
@@ -85,10 +86,10 @@ curl "http://localhost:3001/api/reservations?month=2026-07"
 ```
 backend/
 ├── package.json
+├── node_modules/                  # dependências (gitignored)
 ├── data/                          # gerado automaticamente (banco SQLite)
 └── src/
-    ├── server.js                  # servidor HTTP + roteador
-    ├── http-helpers.js            # resposta JSON e leitura do body
+    ├── server.js                  # app Express + middlewares + routers
     ├── db/
     │   ├── schema.sql              # definição das tabelas
     │   └── connection.js           # conexão com o SQLite

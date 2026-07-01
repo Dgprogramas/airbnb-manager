@@ -1,15 +1,18 @@
 'use strict';
 
+const express = require('express');
 const settings = require('../repositories/settings');
 
-async function getSettings(req, res, ctx, { sendJson }) {
-  sendJson(res, 200, settings.get());
-}
+const router = express.Router();
 
-async function updateSettings(req, res, ctx, { sendJson, readJsonBody }) {
-  const body = await readJsonBody(req);
-  const updated = settings.update(body);
-  sendJson(res, 200, updated);
-}
+// GET /api/settings
+router.get('/', (req, res) => {
+  res.json(settings.get());
+});
 
-module.exports = { getSettings, updateSettings };
+// PATCH /api/settings
+router.patch('/', (req, res) => {
+  res.json(settings.update(req.body));
+});
+
+module.exports = router;
