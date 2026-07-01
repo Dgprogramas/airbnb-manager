@@ -26,3 +26,9 @@ export interface NewReservation {
   checkoutDate: string;
   grossAmount: number;
 }
+
+export interface Settings {
+  hostSplitPercent: number;
+  ownerName: string;
+  icalUrl: string | null;
+}

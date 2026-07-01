@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Check, Plus, RefreshCw, X } from 'lucide-react';
+import { Check, Plus, RefreshCw, Settings as SettingsIcon, X } from 'lucide-react';
 import type { Reservation } from '../types';
 import * as api from '../api';
 
@@ -43,6 +43,10 @@ export default function Reservas() {
   const [completingId, setCompletingId] = useState<number | null>(null);
   const [completeForm, setCompleteForm] = useState({ guestName: '', grossAmount: '' });
 
+  const [showConfig, setShowConfig] = useState(false);
+  const [icalUrl, setIcalUrl] = useState('');
+  const [savingConfig, setSavingConfig] = useState(false);
+
   async function load() {
     setLoading(true);
     setError(null);
@@ -58,6 +62,29 @@ export default function Reservas() {
   useEffect(() => {
     load();
   }, [pendingOnly]);
+
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => setIcalUrl(s.icalUrl ?? ''))
+      .catch(() => {});
+  }, []);
+
+  async function handleSaveConfig() {
+    setSavingConfig(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const saved = await api.updateSettings({ icalUrl: icalUrl.trim() || null });
+      setIcalUrl(saved.icalUrl ?? '');
+      setShowConfig(false);
+      setMessage('URL do iCal salva. Agora é só clicar em “Sincronizar com Airbnb”.');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSavingConfig(false);
+    }
+  }
 
   async function handleSync() {
     setSyncing(true);
@@ -145,8 +172,41 @@ export default function Reservas() {
             {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {showForm ? 'Cancelar' : 'Nova reserva'}
           </button>
+          <button
+            className={btnSecondary}
+            onClick={() => setShowConfig((s) => !s)}
+            title="Configurar URL do iCal do Airbnb"
+          >
+            <SettingsIcon className="h-4 w-4" />
+            Configurar
+          </button>
         </div>
       </div>
+
+      {showConfig && (
+        <div className="my-3 rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-1 font-semibold">Configuração do Airbnb</h3>
+          <p className="mb-3 text-xs text-muted">
+            Cole a URL do calendário (iCal) do seu anúncio. No Airbnb: Calendário → Disponibilidade →
+            Conectar outro site / Exportar calendário.
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex min-w-[260px] flex-1 flex-col gap-1 text-xs text-muted">
+              URL do iCal
+              <input
+                className={inputCls}
+                value={icalUrl}
+                onChange={(e) => setIcalUrl(e.target.value)}
+                placeholder="https://www.airbnb.com/calendar/ical/....ics"
+              />
+            </label>
+            <button className={btnPrimary} onClick={handleSaveConfig} disabled={savingConfig}>
+              <Check className="h-4 w-4" />
+              {savingConfig ? 'Salvando…' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <label className="my-3.5 inline-flex items-center gap-1.5 text-sm text-muted">
         <input

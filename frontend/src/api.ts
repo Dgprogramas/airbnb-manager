@@ -1,4 +1,4 @@
-import type { NewReservation, Reservation, SyncResult } from './types';
+import type { NewReservation, Reservation, Settings, SyncResult } from './types';
 
 // Trata a resposta: se não for 2xx, extrai a mensagem de erro do backend.
 async function handle<T>(res: Response): Promise<T> {
@@ -56,6 +56,20 @@ export async function syncReservations(icalUrl?: string): Promise<SyncResult> {
       method: 'POST',
       headers: jsonHeaders,
       body: JSON.stringify(icalUrl ? { icalUrl } : {}),
+    })
+  );
+}
+
+export async function getSettings(): Promise<Settings> {
+  return handle(await fetch('/api/settings'));
+}
+
+export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
+  return handle(
+    await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: jsonHeaders,
+      body: JSON.stringify(patch),
     })
   );
 }
