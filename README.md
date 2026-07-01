@@ -3,10 +3,12 @@
 Aplicação local (com UI em React, a partir da Sprint 4) para automatizar a
 gestão de reservas, cadastro no condomínio e fechamento financeiro do Airbnb.
 
-## Status: Sprint 1 concluída — Backend com banco de dados + CRUD
+## Status: Sprint 2 concluída — Fechamento financeiro
 
-O que existe até agora é só o **backend** (API). A interface visual entra
-na Sprint 4. Por enquanto, testa-se via `curl` ou Postman.
+Sprints 1 e 2 concluídas. O que existe é só o **backend** (API): CRUD de
+reservas/despesas/configurações e o endpoint de fechamento financeiro mensal.
+A interface visual entra na Sprint 4. Por enquanto, testa-se via `curl` ou
+Postman.
 
 ### Stack desta sprint
 
@@ -55,6 +57,14 @@ PATCH  /api/settings
   body: { hostSplitPercent?, ownerName?, icalUrl? }
 ```
 
+**Fechamento financeiro**
+```
+GET    /api/finance/closing?month=2026-07
+  retorna: receita bruta do mês, total de despesas (com breakdown por
+  categoria), saldo, valor do anfitrião (saldo × hostSplitPercent) e
+  valor do dono (saldo × restante)
+```
+
 ### Exemplo rápido
 
 ```bash
@@ -81,14 +91,17 @@ backend/
     │   ├── reservations.js
     │   ├── expenses.js
     │   └── settings.js
+    ├── services/
+    │   └── finance.js              # cálculo do fechamento mensal
     └── routes/
         ├── reservations.js
         ├── expenses.js
-        └── settings.js
+        ├── settings.js
+        └── finance.js
 ```
 
 ## Próximas sprints
 
-- **Sprint 2:** endpoint de fechamento financeiro (`GET /api/finance/closing`)
 - **Sprint 3:** sincronização automática com o iCal do Airbnb
 - **Sprint 4:** setup do React + primeira tela (Reservas)
+- **Sprint 5:** telas de Despesas e Fechamento Mensal

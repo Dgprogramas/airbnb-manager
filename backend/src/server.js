@@ -7,6 +7,7 @@ const { sendJson, readJsonBody } = require('./http-helpers');
 const reservationRoutes = require('./routes/reservations');
 const expenseRoutes = require('./routes/expenses');
 const settingsRoutes = require('./routes/settings');
+const financeRoutes = require('./routes/finance');
 
 const PORT = process.env.PORT || 3001;
 
@@ -23,6 +24,8 @@ const routes = [
 
   ['GET', ['api', 'settings'], settingsRoutes.getSettings],
   ['PATCH', ['api', 'settings'], settingsRoutes.updateSettings],
+
+  ['GET', ['api', 'finance', 'closing'], financeRoutes.getClosing],
 ];
 
 function matchRoute(method, pathSegments) {
