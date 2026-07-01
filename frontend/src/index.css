@@ -1,12 +1,37 @@
 @import "tailwindcss";
 
-/* Cor da marca reaproveitável como utilitário: bg-brand, text-brand, etc. */
+/*
+  Tokens semânticos: as telas usam bg-page, bg-surface, bg-elevated,
+  border-line, text-content, text-muted — e esses valores mudam sozinhos
+  quando a classe .dark está no <html>. Assim não precisamos de dark:
+  espalhado por todo componente.
+*/
 @theme {
   --color-brand: #ff5a5f;
   --color-brand-dark: #e0484d;
+
+  --color-page: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-elevated: #f0f0f2;
+  --color-line: #e5e5ea;
+  --color-content: #1d1d1f;
+  --color-muted: #6e6e73;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+.dark {
+  --color-page: #0f1115;
+  --color-surface: #1a1d23;
+  --color-elevated: #242832;
+  --color-line: #2a2e37;
+  --color-content: #f2f3f5;
+  --color-muted: #9aa0aa;
 }
 
 body {
   margin: 0;
-  background-color: #f5f5f7;
+  font-family: var(--font-sans);
+  background-color: var(--color-page);
+  color: var(--color-content);
 }
