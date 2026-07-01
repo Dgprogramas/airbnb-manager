@@ -36,6 +36,7 @@ automaticamente em `backend/data/airbnb-manager.db` na primeira execução.
 **Reservas**
 ```
 GET    /api/reservations?month=2026-07&pendingOnly=true
+GET    /api/reservations/:id
 POST   /api/reservations
   body: { guestName, checkinDate, checkoutDate, grossAmount }
 PATCH  /api/reservations/:id

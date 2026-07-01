@@ -11,6 +11,14 @@ async function listReservations(req, res, { query }, { sendJson }) {
   sendJson(res, 200, result);
 }
 
+async function getReservation(req, res, { params }, { sendJson }) {
+  const reservation = reservations.findById(params.id);
+  if (!reservation) {
+    return sendJson(res, 404, { error: `Reserva #${params.id} não encontrada` });
+  }
+  sendJson(res, 200, reservation);
+}
+
 async function createReservation(req, res, ctx, { sendJson, readJsonBody }) {
   const body = await readJsonBody(req);
   if (!body.guestName || !body.checkinDate || !body.checkoutDate) {
@@ -32,4 +40,4 @@ async function syncReservations(req, res, ctx, { sendJson, readJsonBody }) {
   sendJson(res, 200, result);
 }
 
-module.exports = { listReservations, createReservation, updateReservation, syncReservations };
+module.exports = { listReservations, getReservation, createReservation, updateReservation, syncReservations };

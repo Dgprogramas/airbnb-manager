@@ -1,0 +1,176 @@
+{
+  "info": {
+    "name": "Airbnb Manager API",
+    "description": "Coleção local do Airbnb Manager. Servidor: http://localhost:3001 (rode `cd backend && node src/server.js` antes). A variável {{baseUrl}} já aponta pra lá.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reservas",
+      "item": [
+        {
+          "name": "GET /api/reservations (todas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/reservations", "host": ["{{baseUrl}}"], "path": ["api", "reservations"] }
+          }
+        },
+        {
+          "name": "GET /api/reservations (filtros)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reservations?month=2026-07&pendingOnly=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reservations"],
+              "query": [
+                { "key": "month", "value": "2026-07" },
+                { "key": "pendingOnly", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/reservations/:id (uma reserva)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/reservations/1", "host": ["{{baseUrl}}"], "path": ["api", "reservations", "1"] }
+          }
+        },
+        {
+          "name": "POST /api/reservations (criar)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestName\": \"Maria Silva\",\n  \"checkinDate\": \"2026-07-21\",\n  \"checkoutDate\": \"2026-07-25\",\n  \"grossAmount\": 800\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/reservations", "host": ["{{baseUrl}}"], "path": ["api", "reservations"] }
+          }
+        },
+        {
+          "name": "PATCH /api/reservations/:id (atualizar)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"condoRegistered\": true,\n  \"apartmentInfoSent\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/reservations/1", "host": ["{{baseUrl}}"], "path": ["api", "reservations", "1"] }
+          }
+        },
+        {
+          "name": "POST /api/reservations/sync (iCal Airbnb)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"icalUrl\": \"https://www.airbnb.com/calendar/ical/SEU-CALENDARIO.ics\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/reservations/sync", "host": ["{{baseUrl}}"], "path": ["api", "reservations", "sync"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Despesas",
+      "item": [
+        {
+          "name": "GET /api/expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses?month=2026-07",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "expenses"],
+              "query": [{ "key": "month", "value": "2026-07" }]
+            }
+          }
+        },
+        {
+          "name": "POST /api/expenses (criar)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": \"2026-07\",\n  \"category\": \"condominio\",\n  \"amount\": 350,\n  \"description\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/expenses", "host": ["{{baseUrl}}"], "path": ["api", "expenses"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Configurações",
+      "item": [
+        {
+          "name": "GET /api/settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/settings", "host": ["{{baseUrl}}"], "path": ["api", "settings"] }
+          }
+        },
+        {
+          "name": "PATCH /api/settings",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hostSplitPercent\": 30,\n  \"ownerName\": \"Pai\",\n  \"icalUrl\": \"https://www.airbnb.com/calendar/ical/SEU-CALENDARIO.ics\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/settings", "host": ["{{baseUrl}}"], "path": ["api", "settings"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fechamento financeiro",
+      "item": [
+        {
+          "name": "GET /api/finance/closing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/finance/closing?month=2026-07",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "finance", "closing"],
+              "query": [{ "key": "month", "value": "2026-07" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
