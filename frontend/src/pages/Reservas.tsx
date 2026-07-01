@@ -64,7 +64,7 @@ const btnPrimary =
 const btnSecondary =
   'inline-flex items-center gap-1.5 rounded-lg bg-elevated px-3.5 py-2 text-sm font-medium text-content hover:opacity-80';
 const btnGhost =
-  'inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-content hover:bg-elevated';
+  'inline-flex w-28 items-center justify-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-content hover:bg-elevated';
 const inputCls =
   'rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-content outline-none focus:ring-2 focus:ring-brand/40';
 const labelCls = 'flex flex-col gap-1 text-xs text-muted';
@@ -233,16 +233,18 @@ export default function Reservas() {
           <td className={td}>{formatDate(r.checkoutDate)}</td>
           <td className={td}>{formatMoney(r.grossAmount)}</td>
           <td className={td}>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${stay.cls}`}
-            >
-              {stay.label}
-            </span>
-            {needsData && (
-              <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
-                Faltam dados
+            <div className="flex flex-col items-start gap-1">
+              <span
+                className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${stay.cls}`}
+              >
+                {stay.label}
               </span>
-            )}
+              {needsData && (
+                <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
+                  Faltam dados
+                </span>
+              )}
+            </div>
           </td>
           <td className={`${td} text-center`}>
             <input
