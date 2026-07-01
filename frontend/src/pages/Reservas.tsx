@@ -13,6 +13,40 @@ function formatDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+const MONTH_NAMES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+// 'YYYY-MM' -> 'Agosto de 2026'
+function monthLabel(key: string): string {
+  const [y, m] = key.split('-');
+  return `${MONTH_NAMES[Number(m) - 1]} de ${y}`;
+}
+
+// Agrupa as reservas por mês do check-in, preservando a ordem (a API já
+// devolve ordenado por checkin_date ascendente).
+function groupByMonth(items: Reservation[]): { key: string; rows: Reservation[] }[] {
+  const groups: { key: string; rows: Reservation[] }[] = [];
+  for (const r of items) {
+    const key = r.checkinDate.slice(0, 7);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.rows.push(r);
+    else groups.push({ key, rows: [r] });
+  }
+  return groups;
+}
+
 // Classes reaproveitadas (deixam o JSX mais limpo)
 const btnPrimary =
   'inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60';
@@ -177,6 +211,110 @@ export default function Reservas() {
     }
   }
 
+  function renderRow(r: Reservation) {
+    return (
+      <Fragment key={r.id}>
+        <tr className={r.status === 'pending' ? 'bg-amber-500/5' : ''}>
+          <td className={td}>{r.guestName}</td>
+          <td className={td}>{formatDate(r.checkinDate)}</td>
+          <td className={td}>{formatDate(r.checkoutDate)}</td>
+          <td className={td}>{formatMoney(r.grossAmount)}</td>
+          <td className={td}>
+            {r.status === 'pending' ? (
+              <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
+                Pendente
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
+                Completa
+              </span>
+            )}
+          </td>
+          <td className={`${td} text-center`}>
+            <input
+              type="checkbox"
+              checked={r.condoRegistered}
+              onChange={() => toggleFlag(r, 'condoRegistered')}
+            />
+          </td>
+          <td className={`${td} text-center`}>
+            <input
+              type="checkbox"
+              checked={r.apartmentInfoSent}
+              onChange={() => toggleFlag(r, 'apartmentInfoSent')}
+            />
+          </td>
+          <td className={td}>
+            {r.status === 'pending' && (
+              <button className={btnGhost} onClick={() => toggleComplete(r)}>
+                <Pencil className="h-3.5 w-3.5" />
+                Completar
+              </button>
+            )}
+          </td>
+        </tr>
+        {completingId === r.id && (
+          <tr>
+            <td className="border-b border-line p-0" colSpan={8}>
+              <div
+                className={`m-3 rounded-lg border border-line bg-page p-4 ${
+                  closingPanel ? 'animate-reveal-out' : 'animate-reveal'
+                }`}
+                onAnimationEnd={() => {
+                  if (closingPanel) {
+                    setCompletingId(null);
+                    setClosingPanel(false);
+                  }
+                }}
+              >
+                <p className="mb-3 text-sm font-medium">Completar pendência</p>
+                <form
+                  className="flex flex-wrap items-end gap-3"
+                  onSubmit={(e) => handleComplete(e, r.id)}
+                >
+                  <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-muted">
+                    Nome do hóspede
+                    <input
+                      className={inputCls}
+                      value={completeForm.guestName}
+                      onChange={(e) =>
+                        setCompleteForm({ ...completeForm, guestName: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="flex w-40 flex-col gap-1 text-xs text-muted">
+                    Valor (R$)
+                    <input
+                      type="number"
+                      step="0.01"
+                      className={inputCls}
+                      value={completeForm.grossAmount}
+                      onChange={(e) =>
+                        setCompleteForm({ ...completeForm, grossAmount: e.target.value })
+                      }
+                    />
+                  </label>
+                  <div className="flex gap-2">
+                    <button type="button" className={btnSecondary} onClick={closePanel}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className={btnPrimary}>
+                      <Check className="h-4 w-4" />
+                      Salvar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </td>
+          </tr>
+        )}
+      </Fragment>
+    );
+  }
+
+  const groups = groupByMonth(items);
+
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -304,122 +442,32 @@ export default function Reservas() {
           Nenhuma reserva. Clique em “Sincronizar com Airbnb” ou “Nova reserva”.
         </p>
       ) : (
-        <div className="mt-3 overflow-hidden rounded-xl border border-line bg-surface">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr>
-                <th className={th}>Hóspede</th>
-                <th className={th}>Check-in</th>
-                <th className={th}>Check-out</th>
-                <th className={th}>Valor</th>
-                <th className={th}>Status</th>
-                <th className={th}>Condomínio</th>
-                <th className={th}>Info enviada</th>
-                <th className={th}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((r) => (
-                <Fragment key={r.id}>
-                  <tr className={r.status === 'pending' ? 'bg-amber-500/5' : ''}>
-                    <td className={td}>{r.guestName}</td>
-                    <td className={td}>{formatDate(r.checkinDate)}</td>
-                    <td className={td}>{formatDate(r.checkoutDate)}</td>
-                    <td className={td}>{formatMoney(r.grossAmount)}</td>
-                    <td className={td}>
-                      {r.status === 'pending' ? (
-                        <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
-                          Pendente
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
-                          Completa
-                        </span>
-                      )}
-                    </td>
-                    <td className={`${td} text-center`}>
-                      <input
-                        type="checkbox"
-                        checked={r.condoRegistered}
-                        onChange={() => toggleFlag(r, 'condoRegistered')}
-                      />
-                    </td>
-                    <td className={`${td} text-center`}>
-                      <input
-                        type="checkbox"
-                        checked={r.apartmentInfoSent}
-                        onChange={() => toggleFlag(r, 'apartmentInfoSent')}
-                      />
-                    </td>
-                    <td className={td}>
-                      {r.status === 'pending' && (
-                        <button className={btnGhost} onClick={() => toggleComplete(r)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                          Completar
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  {completingId === r.id && (
+        <div className="mt-3 space-y-6">
+          {groups.map((g) => (
+            <div key={g.key}>
+              <h3 className="mb-2 text-sm font-semibold capitalize text-muted">
+                {monthLabel(g.key)}
+                <span className="ml-2 font-normal text-muted/70">({g.rows.length})</span>
+              </h3>
+              <div className="overflow-hidden rounded-xl border border-line bg-surface">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
                     <tr>
-                      <td className="border-b border-line p-0" colSpan={8}>
-                        <div
-                          className={`m-3 rounded-lg border border-line bg-page p-4 ${
-                            closingPanel ? 'animate-reveal-out' : 'animate-reveal'
-                          }`}
-                          onAnimationEnd={() => {
-                            if (closingPanel) {
-                              setCompletingId(null);
-                              setClosingPanel(false);
-                            }
-                          }}
-                        >
-                          <p className="mb-3 text-sm font-medium">Completar pendência</p>
-                          <form
-                            className="flex flex-wrap items-end gap-3"
-                            onSubmit={(e) => handleComplete(e, r.id)}
-                          >
-                            <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-muted">
-                              Nome do hóspede
-                              <input
-                                className={inputCls}
-                                value={completeForm.guestName}
-                                onChange={(e) =>
-                                  setCompleteForm({ ...completeForm, guestName: e.target.value })
-                                }
-                                required
-                              />
-                            </label>
-                            <label className="flex w-40 flex-col gap-1 text-xs text-muted">
-                              Valor (R$)
-                              <input
-                                type="number"
-                                step="0.01"
-                                className={inputCls}
-                                value={completeForm.grossAmount}
-                                onChange={(e) =>
-                                  setCompleteForm({ ...completeForm, grossAmount: e.target.value })
-                                }
-                              />
-                            </label>
-                            <div className="flex gap-2">
-                              <button type="button" className={btnSecondary} onClick={closePanel}>
-                                Cancelar
-                              </button>
-                              <button type="submit" className={btnPrimary}>
-                                <Check className="h-4 w-4" />
-                                Salvar
-                              </button>
-                            </div>
-                          </form>
-                        </div>
-                      </td>
+                      <th className={th}>Hóspede</th>
+                      <th className={th}>Check-in</th>
+                      <th className={th}>Check-out</th>
+                      <th className={th}>Valor</th>
+                      <th className={th}>Status</th>
+                      <th className={th}>Condomínio</th>
+                      <th className={th}>Info enviada</th>
+                      <th className={th}></th>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                  </thead>
+                  <tbody>{g.rows.map((r) => renderRow(r))}</tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </section>
