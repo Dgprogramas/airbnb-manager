@@ -16,7 +16,7 @@ export default function Checkbox({ checked, onChange, label }: CheckboxProps) {
       aria-checked={checked}
       aria-label={label}
       onClick={onChange}
-      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] ring-1 ring-inset ${
+      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[7px] ring-1 ring-inset ${
         checked ? 'bg-success ring-success' : 'bg-muted/10 ring-black/15'
       }`}
     >
