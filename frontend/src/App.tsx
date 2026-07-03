@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
 import { House, Moon, Sun } from 'lucide-react';
 import Reservas from './pages/Reservas';
+import Despesas from './pages/Despesas';
+import Fechamento from './pages/Fechamento';
+import Configuracoes from './pages/Configuracoes';
+
+type Screen = 'reservas' | 'despesas' | 'fechamento' | 'config';
+
+const NAV: { id: Screen; label: string }[] = [
+  { id: 'reservas', label: 'Reservas' },
+  { id: 'despesas', label: 'Despesas' },
+  { id: 'fechamento', label: 'Fechamento' },
+  { id: 'config', label: 'Configurações' },
+];
 
 export default function App() {
   const [dark, setDark] = useState(true);
+  const [screen, setScreen] = useState<Screen>('reservas');
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
   }, [dark]);
-
-  const navItems = [
-    { label: 'Reservas', active: true },
-    { label: 'Despesas', active: false },
-    { label: 'Fechamento', active: false },
-    { label: 'Configurações', active: false },
-  ];
 
   return (
     <div className="relative min-h-screen">
@@ -35,21 +41,27 @@ export default function App() {
             </button>
           </div>
           <nav className="mt-3.5 inline-flex gap-1 rounded-full bg-elevated/50 p-1 text-sm ring-1 ring-black/5">
-            {navItems.map((item) => (
-              <span
-                key={item.label}
+            {NAV.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setScreen(item.id)}
                 className={`rounded-full px-3.5 py-1.5 font-medium transition-colors ${
-                  item.active ? 'bg-surface/90 text-content shadow-sm' : 'text-muted/60'
+                  screen === item.id
+                    ? 'bg-surface/90 text-content shadow-sm'
+                    : 'text-muted hover:text-content'
                 }`}
               >
                 {item.label}
-              </span>
+              </button>
             ))}
           </nav>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-6">
-        <Reservas />
+        {screen === 'reservas' && <Reservas />}
+        {screen === 'despesas' && <Despesas />}
+        {screen === 'fechamento' && <Fechamento />}
+        {screen === 'config' && <Configuracoes />}
       </main>
     </div>
   );

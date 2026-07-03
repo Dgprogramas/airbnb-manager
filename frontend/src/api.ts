@@ -1,4 +1,12 @@
-import type { NewReservation, Reservation, Settings, SyncResult } from './types';
+import type {
+  Closing,
+  Expense,
+  NewExpense,
+  NewReservation,
+  Reservation,
+  Settings,
+  SyncResult,
+} from './types';
 
 // Trata a resposta: se não for 2xx, extrai a mensagem de erro do backend.
 async function handle<T>(res: Response): Promise<T> {
@@ -77,4 +85,37 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
       body: JSON.stringify(patch),
     })
   );
+}
+
+export async function listExpenses(month?: string): Promise<Expense[]> {
+  const query = month ? `?month=${month}` : '';
+  return handle(await fetch(`/api/expenses${query}`));
+}
+
+export async function createExpense(body: NewExpense): Promise<Expense> {
+  return handle(
+    await fetch('/api/expenses', {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+export async function updateExpense(id: number, patch: Partial<Expense>): Promise<Expense> {
+  return handle(
+    await fetch(`/api/expenses/${id}`, {
+      method: 'PATCH',
+      headers: jsonHeaders,
+      body: JSON.stringify(patch),
+    })
+  );
+}
+
+export async function deleteExpense(id: number): Promise<void> {
+  return handle(await fetch(`/api/expenses/${id}`, { method: 'DELETE' }));
+}
+
+export async function getClosing(month: string): Promise<Closing> {
+  return handle(await fetch(`/api/finance/closing?month=${month}`));
 }

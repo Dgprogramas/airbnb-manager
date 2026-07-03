@@ -36,3 +36,37 @@ export interface Settings {
   ownerName: string;
   icalUrl: string | null;
 }
+
+export type ExpenseCategory = 'luz' | 'condominio' | 'internet' | 'funcionaria' | 'outro';
+
+export interface Expense {
+  id: number;
+  month: string; // 'YYYY-MM'
+  category: ExpenseCategory;
+  amount: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface NewExpense {
+  month: string;
+  category: ExpenseCategory;
+  amount: number;
+  description?: string;
+}
+
+// Resposta de GET /api/finance/closing
+export interface Closing {
+  month: string;
+  hostSplitPercent: number;
+  ownerSplitPercent: number;
+  ownerName: string;
+  reservationsCount: number;
+  pendingCount: number;
+  grossRevenue: number;
+  totalExpenses: number;
+  expensesByCategory: Partial<Record<ExpenseCategory, number>>;
+  balance: number;
+  hostAmount: number;
+  ownerAmount: number;
+}

@@ -173,9 +173,9 @@ de `createdCount`/`skippedCount`.
 | 2 | Backend: fechamento financeiro (`GET /api/finance/closing`) — receita − despesas, split host%/dono% | ✅ Concluída |
 | 3 | Backend: sync com iCal do Airbnb (`POST /api/reservations/sync`) — cria reservas `pending` a partir das datas (iCal só traz datas, sem nome/valor) | ✅ Concluída |
 | 4 | Frontend: React (Vite) + tela de Reservas (listar, sincronizar, completar pendências) | ✅ Concluída |
-| 5 | Frontend: telas de Despesas e Fechamento Mensal | 🔜 Próxima |
-| 6 | Frontend: tela de Configurações + navegação | Planejada |
-| 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | Planejada |
+| 5 | Frontend: telas de Despesas e Fechamento Mensal | ✅ Concluída |
+| 6 | Frontend: tela de Configurações + navegação entre abas | ✅ Concluída |
+| 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | 🔜 Próxima |
 | 8 | RPA (Playwright) do cadastro de visitantes no portal do **Condomínio Dedicado**, disparado pela UI | Planejada |
 | 9 | Histórico de fechamentos persistido (tabela `closings`: mês, valores, pago/pendente) — protege contra recálculo retroativo se o split% mudar | Ideia |
 | 10 | Template de mensagem de check-in p/ WhatsApp (placeholders + botão wa.me / copiar) — automatiza o "enviar infos do apê" sem RPA | Ideia |
