@@ -48,4 +48,33 @@ function list({ month } = {}) {
   return rows.map(rowToExpense);
 }
 
-module.exports = { CATEGORIES, create, findById, list };
+function update(id, patch) {
+  const existing = findById(id);
+  if (!existing) throw new Error(`Despesa #${id} não encontrada`);
+
+  const merged = {
+    month: patch.month ?? existing.month,
+    category: patch.category ?? existing.category,
+    amount: patch.amount !== undefined ? Number(patch.amount) : existing.amount,
+    description: patch.description ?? existing.description,
+  };
+  if (!CATEGORIES.includes(merged.category)) {
+    throw new Error(`Categoria inválida "${merged.category}". Use uma de: ${CATEGORIES.join(', ')}`);
+  }
+
+  const db = getDb();
+  db.prepare(`
+    UPDATE expenses SET month = ?, category = ?, amount = ?, description = ?
+    WHERE id = ?
+  `).run(merged.month, merged.category, merged.amount, merged.description, Number(id));
+
+  return findById(id);
+}
+
+function remove(id) {
+  const db = getDb();
+  const result = db.prepare('DELETE FROM expenses WHERE id = ?').run(Number(id));
+  return result.changes > 0;
+}
+
+module.exports = { CATEGORIES, create, findById, list, update, remove };

@@ -5,7 +5,9 @@
   "description": "API local do Airbnb Manager — reservas, despesas e fechamento financeiro",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test \"tests/*.test.js\""
   },
   "engines": {
     "node": ">=22.5.0"

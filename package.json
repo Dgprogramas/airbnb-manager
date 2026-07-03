@@ -1,0 +1,13 @@
+{
+  "name": "airbnb-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gestão local de Airbnb — sobe backend e frontend juntos",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "test": "npm test --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

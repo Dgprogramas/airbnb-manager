@@ -12,6 +12,7 @@ async function handle<T>(res: Response): Promise<T> {
     }
     throw new Error(msg);
   }
+  if (res.status === 204) return undefined as T; // DELETE não tem corpo
   return res.json() as Promise<T>;
 }
 
@@ -48,6 +49,10 @@ export async function updateReservation(
       body: JSON.stringify(patch),
     })
   );
+}
+
+export async function deleteReservation(id: number): Promise<void> {
+  return handle(await fetch(`/api/reservations/${id}`, { method: 'DELETE' }));
 }
 
 export async function syncReservations(icalUrl?: string): Promise<SyncResult> {

@@ -10,5 +10,12 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3001',
     },
+    // O projeto vive em D:\ montado no WSL via 9p — esse tipo de mount não
+    // propaga eventos de inotify, então o watcher nativo do Vite nunca
+    // percebe as mudanças. Polling força ele a checar os arquivos periodicamente.
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
   },
 });

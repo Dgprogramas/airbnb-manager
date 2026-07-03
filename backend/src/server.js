@@ -3,6 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 
+const { runDailyBackup } = require('./db/backup');
 const reservationRoutes = require('./routes/reservations');
 const expenseRoutes = require('./routes/expenses');
 const settingsRoutes = require('./routes/settings');
@@ -30,6 +31,15 @@ app.use((err, req, res, next) => {
   console.error(err);
   res.status(err.status || 500).json({ error: err.message });
 });
+
+// Backup diário do banco no start (mantém os últimos 7 em data/backups/).
+// Falha de backup não impede o servidor de subir.
+try {
+  const backupPath = runDailyBackup();
+  if (backupPath) console.log(`Backup do banco criado em ${backupPath}`);
+} catch (err) {
+  console.error('Falha ao criar backup do banco:', err.message);
+}
 
 app.listen(PORT, () => {
   console.log(`Airbnb Manager API rodando em http://localhost:${PORT}`);

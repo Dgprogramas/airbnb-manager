@@ -15,6 +15,7 @@ function rowToReservation(row) {
     status: row.status,
     source: row.source,
     icalUid: row.ical_uid,
+    cancelledAt: row.cancelled_at,
     createdAt: row.created_at,
   };
 }
@@ -123,4 +124,38 @@ function update(id, patch) {
   return findById(id);
 }
 
-module.exports = { create, findById, findByIcalUid, list, update };
+// Reservas do iCal ainda não canceladas com check-in a partir de `dateIso` —
+// usadas pelo sync para detectar cancelamentos (evento sumiu do feed).
+function listActiveIcalFrom(dateIso) {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT * FROM reservations
+       WHERE source = 'airbnb-ical' AND cancelled_at IS NULL AND checkin_date >= ?`
+    )
+    .all(dateIso);
+  return rows.map(rowToReservation);
+}
+
+function markCancelled(id) {
+  const db = getDb();
+  db.prepare("UPDATE reservations SET cancelled_at = datetime('now') WHERE id = ?").run(Number(id));
+  return findById(id);
+}
+
+function remove(id) {
+  const db = getDb();
+  const result = db.prepare('DELETE FROM reservations WHERE id = ?').run(Number(id));
+  return result.changes > 0;
+}
+
+module.exports = {
+  create,
+  findById,
+  findByIcalUid,
+  list,
+  update,
+  listActiveIcalFrom,
+  markCancelled,
+  remove,
+};

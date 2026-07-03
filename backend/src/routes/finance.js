@@ -2,13 +2,14 @@
 
 const express = require('express');
 const finance = require('../services/finance');
+const { isMonth } = require('../validation');
 
 const router = express.Router();
 
 // GET /api/finance/closing?month=YYYY-MM
 router.get('/closing', (req, res) => {
   const month = req.query.month;
-  if (!month) {
+  if (!isMonth(month)) {
     return res.status(400).json({ error: 'O parâmetro "month" (YYYY-MM) é obrigatório' });
   }
   res.json(finance.closeMonth(month));

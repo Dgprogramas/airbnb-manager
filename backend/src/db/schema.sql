@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   status TEXT NOT NULL DEFAULT 'complete',        -- 'pending' | 'complete'
   source TEXT NOT NULL DEFAULT 'manual',          -- 'manual' | 'airbnb-ical'
   ical_uid TEXT,
+  cancelled_at TEXT,               -- preenchido quando a reserva some do iCal (cancelada no Airbnb)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

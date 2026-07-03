@@ -14,9 +14,14 @@ function round2(value) {
 function closeMonth(month) {
   if (!month) throw new Error('Parâmetro "month" (YYYY-MM) é obrigatório');
 
-  const monthReservations = reservations.list({ month });
+  // Reservas canceladas no Airbnb não geram receita nem entram no fechamento.
+  const monthReservations = reservations.list({ month }).filter((r) => !r.cancelledAt);
   const monthExpenses = expenses.list({ month });
   const config = settings.get();
+
+  // Reservas ainda sem dados preenchidos (valor = 0): o fechamento sai
+  // incompleto — o chamador deve exibir esse alerta.
+  const pendingCount = monthReservations.filter((r) => r.status === 'pending').length;
 
   const grossRevenue = round2(
     monthReservations.reduce((sum, r) => sum + (r.grossAmount || 0), 0)
@@ -45,6 +50,7 @@ function closeMonth(month) {
     ownerSplitPercent,
     ownerName: config.ownerName,
     reservationsCount: monthReservations.length,
+    pendingCount,
     grossRevenue,
     totalExpenses,
     expensesByCategory,

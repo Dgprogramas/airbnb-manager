@@ -9,6 +9,7 @@ export interface Reservation {
   status: 'pending' | 'complete';
   source: 'manual' | 'airbnb-ical';
   icalUid: string | null;
+  cancelledAt: string | null;
   createdAt: string;
 }
 
@@ -17,7 +18,10 @@ export interface SyncResult {
   totalEvents: number;
   createdCount: number;
   skippedCount: number;
+  blockedCount: number;
+  cancelledCount: number;
   created: Reservation[];
+  cancelled: Reservation[];
 }
 
 export interface NewReservation {

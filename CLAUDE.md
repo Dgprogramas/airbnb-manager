@@ -33,20 +33,37 @@ Construída em **sprints pequenas e incrementais**, cada uma com critério de
 
 ## Como rodar
 
+**Atalho (recomendado):** na raiz do projeto, `npm install` (primeira vez) e
+depois `npm run dev` — sobe backend e frontend juntos via `concurrently`.
+
 **Backend** (terminal 1):
 
 ```bash
 cd backend
 npm install   # só na primeira vez (ou quando mudarem as dependências)
-node src/server.js
+npm run dev   # node --watch: recarrega sozinho ao salvar (ou npm start, sem watch)
 ```
 
 Sobe em `http://localhost:3001`. O banco é criado automaticamente em
 `backend/data/airbnb-manager.db` na primeira execução (esse diretório está no
 `.gitignore` — nunca commitar o `.db`). O aviso
 `ExperimentalWarning: SQLite is an experimental feature` é esperado. A raiz `/`
-não tem rota; os endpoints ficam sob `/api/...`. Reinicie o servidor após
-mudar o código do backend (o Node não recarrega sozinho).
+não tem rota; os endpoints ficam sob `/api/...`. Com `npm start` (sem watch),
+reinicie o servidor após mudar o código do backend.
+
+No start, o servidor cria um **backup diário** do banco em
+`backend/data/backups/` (via `VACUUM INTO`, mantém os últimos 7). A variável
+`AIRBNB_DB_PATH` aponta o banco para outro arquivo (ou `:memory:`) — usada
+pelos testes e útil para testar a API sem tocar nos dados reais.
+
+**Testes do backend:** `cd backend && npm test` (usa `node:test` nativo e
+banco em memória; não precisa de servidor rodando).
+
+**Cuidado ao testar a API manualmente:** se já houver um servidor antigo na
+porta 3001, um `node src/server.js` novo morre com `EADDRINUSE` — e os curls
+vão bater no servidor velho (código desatualizado, banco real). Para testar,
+use porta e banco próprios: `AIRBNB_DB_PATH=/tmp/teste.db PORT=3999 node
+src/server.js`.
 
 **Frontend** (terminal 2, a partir da Sprint 4):
 
@@ -65,9 +82,11 @@ dois precisam estar rodando ao mesmo tempo.
 ```
 backend/src/
 ├── server.js          # app Express: middlewares + monta os routers em /api
+├── validation.js      # validadores compartilhados pelas rotas (datas, mês, valores)
 ├── db/
 │   ├── schema.sql     # schema das tabelas
-│   └── connection.js  # conexão SQLite (singleton getDb())
+│   ├── connection.js  # conexão SQLite (singleton getDb() + migrações de coluna)
+│   └── backup.js      # backup diário via VACUUM INTO (mantém os últimos 7)
 ├── repositories/      # 1 arquivo por entidade: create/list/update/get...
 │   │                  # convertem snake_case (SQLite) ↔ camelCase (JS)
 │   ├── reservations.js
@@ -82,6 +101,9 @@ backend/src/
     ├── settings.js
     └── finance.js
 ```
+
+Testes em `backend/tests/*.test.js` (`node:test` + banco em memória via
+`AIRBNB_DB_PATH=':memory:'`, setado **antes** de qualquer require).
 
 Fluxo: `routes/` (Express Router) → `services/` (quando há regra de negócio)
 ou `repositories/` → banco. Erros lançados sobem para o handler de erro central
@@ -113,7 +135,7 @@ externo (só `useState`/`useEffect`). Novas telas: criar em `pages/` e ligar no
 reservations: id, guest_name, checkin_date, checkout_date, gross_amount,
               condo_registered, apartment_info_sent,
               status ('pending'|'complete'), source ('manual'|'airbnb-ical'),
-              ical_uid, created_at
+              ical_uid, cancelled_at, created_at
 
 expenses:     id, month ('YYYY-MM'),
               category ('luz'|'condominio'|'internet'|'funcionaria'|'outro'),
@@ -131,6 +153,17 @@ settings:     host_split_percent (padrão 30), owner_name (padrão 'Pai'), ical_
 - O **status da estadia** (Futura → Em andamento → Finalizada) é **derivado da
   data no frontend** (não é armazenado): vira **Finalizada** só após as **11:00
   do dia do checkout**. Não confundir com o campo `status`.
+- **`cancelled_at`** é um terceiro conceito: o sync marca a reserva como
+  cancelada quando o evento dela **some do feed iCal** (só reservas de
+  `source='airbnb-ical'` com check-in de hoje em diante — eventos passados
+  saem do feed naturalmente e não são cancelamento). Reserva cancelada fica
+  fora do fechamento financeiro e aparece esmaecida na UI com selo
+  "Cancelada".
+
+**Sync do iCal:** o feed do Airbnb traz eventos "Reserved" (reservas) e
+"Airbnb (Not available)" (datas bloqueadas manualmente). O sync **ignora os
+bloqueios** (não viram reserva) e reporta `blockedCount`/`cancelledCount` além
+de `createdCount`/`skippedCount`.
 
 ## Roadmap
 
@@ -144,6 +177,9 @@ settings:     host_split_percent (padrão 30), owner_name (padrão 'Pai'), ical_
 | 6 | Frontend: tela de Configurações + navegação | Planejada |
 | 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | Planejada |
 | 8 | RPA (Playwright) do cadastro de visitantes no portal do **Condomínio Dedicado**, disparado pela UI | Planejada |
+| 9 | Histórico de fechamentos persistido (tabela `closings`: mês, valores, pago/pendente) — protege contra recálculo retroativo se o split% mudar | Ideia |
+| 10 | Template de mensagem de check-in p/ WhatsApp (placeholders + botão wa.me / copiar) — automatiza o "enviar infos do apê" sem RPA | Ideia |
+| 11 | Dashboard: ocupação, receita por mês, diária média; alertas de check-in próximo sem condomínio/info | Ideia |
 
 Não implementar funcionalidades de sprints futuras antes da hora.
 
