@@ -1,8 +1,11 @@
 export interface Reservation {
   id: number;
   guestName: string;
+  guestDocument: string; // RG do hóspede ('' = não informado)
   checkinDate: string;
   checkoutDate: string;
+  checkinTime: string; // 'HH:MM'
+  checkoutTime: string; // 'HH:MM'
   grossAmount: number;
   condoRegistered: boolean;
   apartmentInfoSent: boolean;
@@ -26,8 +29,11 @@ export interface SyncResult {
 
 export interface NewReservation {
   guestName: string;
+  guestDocument?: string;
   checkinDate: string;
   checkoutDate: string;
+  checkinTime?: string;
+  checkoutTime?: string;
   grossAmount: number;
 }
 

@@ -41,7 +41,7 @@ function stayStatus(r: Reservation): { label: string; cls: string } {
   if (r.cancelledAt) return { label: 'Cancelada', cls: 'bg-danger/12 text-danger' };
   const now = new Date();
   const checkin = new Date(`${r.checkinDate}T00:00:00`);
-  const checkout = new Date(`${r.checkoutDate}T11:00:00`);
+  const checkout = new Date(`${r.checkoutDate}T${r.checkoutTime || '11:00'}:00`);
   if (now >= checkout) return { label: 'Finalizada', cls: 'bg-success/12 text-success' };
   if (now >= checkin) return { label: 'Em andamento', cls: 'bg-warning/15 text-warning' };
   return { label: 'Futura', cls: 'bg-info/12 text-info' };
@@ -78,7 +78,15 @@ const th =
 const td = 'align-top text-[12px] break-words px-3 py-3';
 const tdNowrap = 'align-top whitespace-nowrap text-[12px] px-3 py-3';
    
-const EMPTY_FORM = { guestName: '', checkinDate: '', checkoutDate: '', grossAmount: '' };
+const EMPTY_FORM = {
+  guestName: '',
+  guestDocument: '',
+  checkinDate: '',
+  checkoutDate: '',
+  checkinTime: '14:00',
+  checkoutTime: '11:00',
+  grossAmount: '',
+};
 
 export default function Reservas() {
   const [items, setItems] = useState<Reservation[]>([]);
@@ -94,7 +102,13 @@ export default function Reservas() {
 
   const [completingId, setCompletingId] = useState<number | null>(null);
   const [closingPanel, setClosingPanel] = useState(false);
-  const [completeForm, setCompleteForm] = useState({ guestName: '', grossAmount: '' });
+  const [completeForm, setCompleteForm] = useState({
+    guestName: '',
+    guestDocument: '',
+    checkinTime: '14:00',
+    checkoutTime: '11:00',
+    grossAmount: '',
+  });
 
   const [showConfig, setShowConfig] = useState(false);
   const [icalUrl, setIcalUrl] = useState('');
@@ -192,8 +206,11 @@ export default function Reservas() {
     try {
       await api.createReservation({
         guestName: form.guestName,
+        guestDocument: form.guestDocument.trim(),
         checkinDate: form.checkinDate,
         checkoutDate: form.checkoutDate,
+        checkinTime: form.checkinTime,
+        checkoutTime: form.checkoutTime,
         grossAmount: Number(form.grossAmount) || 0,
       });
       setForm(EMPTY_FORM);
@@ -220,6 +237,9 @@ export default function Reservas() {
     setCompletingId(r.id);
     setCompleteForm({
       guestName: r.guestName.startsWith('Reserva Airbnb') ? '' : r.guestName,
+      guestDocument: r.guestDocument,
+      checkinTime: r.checkinTime || '14:00',
+      checkoutTime: r.checkoutTime || '11:00',
       grossAmount: r.grossAmount ? String(r.grossAmount) : '',
     });
   }
@@ -263,6 +283,9 @@ export default function Reservas() {
     try {
       await api.updateReservation(id, {
         guestName: completeForm.guestName,
+        guestDocument: completeForm.guestDocument.trim(),
+        checkinTime: completeForm.checkinTime,
+        checkoutTime: completeForm.checkoutTime,
         grossAmount: Number(completeForm.grossAmount) || 0,
         status: 'complete',
       });
@@ -286,9 +309,20 @@ export default function Reservas() {
             needsData ? 'bg-elevated/60' : 'bg-elevated/20'
           } ${cancelled ? 'opacity-55' : ''}`}
         >
-          <td className={td}>{r.guestName}</td>
-          <td className={tdNowrap}>{formatDate(r.checkinDate)}</td>
-          <td className={tdNowrap}>{formatDate(r.checkoutDate)}</td>
+          <td className={td}>
+            {r.guestName}
+            {r.guestDocument && (
+              <span className="mt-0.5 block text-[11px] text-muted">RG {r.guestDocument}</span>
+            )}
+          </td>
+          <td className={tdNowrap}>
+            {formatDate(r.checkinDate)}
+            <span className="mt-0.5 block text-[11px] text-muted">{r.checkinTime}</span>
+          </td>
+          <td className={tdNowrap}>
+            {formatDate(r.checkoutDate)}
+            <span className="mt-0.5 block text-[11px] text-muted">{r.checkoutTime}</span>
+          </td>
           <td className={tdNowrap}>{formatMoney(r.grossAmount)}</td>
           <td className={tdNowrap}>
             <div className="flex flex-col items-start gap-1">
@@ -366,6 +400,41 @@ export default function Reservas() {
                       value={completeForm.guestName}
                       onChange={(e) =>
                         setCompleteForm({ ...completeForm, guestName: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="flex w-44 flex-col gap-1 text-xs text-muted">
+                    RG do hóspede
+                    <input
+                      className={inputCls}
+                      value={completeForm.guestDocument}
+                      onChange={(e) =>
+                        setCompleteForm({ ...completeForm, guestDocument: e.target.value })
+                      }
+                      placeholder="Para o condomínio"
+                    />
+                  </label>
+                  <label className="flex w-32 flex-col gap-1 text-xs text-muted">
+                    Hora check-in
+                    <input
+                      type="time"
+                      className={inputCls}
+                      value={completeForm.checkinTime}
+                      onChange={(e) =>
+                        setCompleteForm({ ...completeForm, checkinTime: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="flex w-32 flex-col gap-1 text-xs text-muted">
+                    Hora check-out
+                    <input
+                      type="time"
+                      className={inputCls}
+                      value={completeForm.checkoutTime}
+                      onChange={(e) =>
+                        setCompleteForm({ ...completeForm, checkoutTime: e.target.value })
                       }
                       required
                     />
@@ -482,6 +551,15 @@ export default function Reservas() {
               />
             </label>
             <label className={labelCls}>
+              RG do hóspede
+              <input
+                className={inputCls}
+                value={form.guestDocument}
+                onChange={(e) => setForm({ ...form, guestDocument: e.target.value })}
+                placeholder="Para o condomínio"
+              />
+            </label>
+            <label className={labelCls}>
               Check-in
               <input
                 type="date"
@@ -498,6 +576,26 @@ export default function Reservas() {
                 className={inputCls}
                 value={form.checkoutDate}
                 onChange={(e) => setForm({ ...form, checkoutDate: e.target.value })}
+                required
+              />
+            </label>
+            <label className={labelCls}>
+              Horário de check-in
+              <input
+                type="time"
+                className={inputCls}
+                value={form.checkinTime}
+                onChange={(e) => setForm({ ...form, checkinTime: e.target.value })}
+                required
+              />
+            </label>
+            <label className={labelCls}>
+              Horário de checkout
+              <input
+                type="time"
+                className={inputCls}
+                value={form.checkoutTime}
+                onChange={(e) => setForm({ ...form, checkoutTime: e.target.value })}
                 required
               />
             </label>

@@ -28,4 +28,9 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-module.exports = { isIsoDate, isMonth, isNonNegativeAmount, isNonEmptyString };
+// 'HH:MM' em 24h (00:00 a 23:59)
+function isTime(value) {
+  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+module.exports = { isIsoDate, isMonth, isNonNegativeAmount, isNonEmptyString, isTime };

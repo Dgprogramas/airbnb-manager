@@ -1,8 +1,11 @@
 CREATE TABLE IF NOT EXISTS reservations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   guest_name TEXT NOT NULL,
+  guest_document TEXT NOT NULL DEFAULT '', -- RG do hóspede (exigido pelo portal do condomínio)
   checkin_date TEXT NOT NULL,      -- 'YYYY-MM-DD'
   checkout_date TEXT NOT NULL,     -- 'YYYY-MM-DD'
+  checkin_time TEXT NOT NULL DEFAULT '14:00',  -- 'HH:MM'
+  checkout_time TEXT NOT NULL DEFAULT '11:00', -- 'HH:MM'
   gross_amount REAL NOT NULL DEFAULT 0,
   condo_registered INTEGER NOT NULL DEFAULT 0,   -- 0/1
   apartment_info_sent INTEGER NOT NULL DEFAULT 0, -- 0/1

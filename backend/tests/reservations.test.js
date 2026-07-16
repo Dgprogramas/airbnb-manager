@@ -33,6 +33,23 @@ test('create + findById fazem o round-trip com camelCase', () => {
   assert.equal(found.status, 'complete');
   assert.equal(found.source, 'manual');
   assert.equal(found.cancelledAt, null);
+
+  // Campos do cadastro no condomínio: defaults quando não informados
+  assert.equal(found.guestDocument, '');
+  assert.equal(found.checkinTime, '14:00');
+  assert.equal(found.checkoutTime, '11:00');
+});
+
+test('create aceita documento e horários informados', () => {
+  const created = createSample({
+    guestDocument: '12.345.678-9',
+    checkinTime: '15:30',
+    checkoutTime: '10:00',
+  });
+
+  assert.equal(created.guestDocument, '12.345.678-9');
+  assert.equal(created.checkinTime, '15:30');
+  assert.equal(created.checkoutTime, '10:00');
 });
 
 test('list filtra por mês do check-in e por pendência', () => {
@@ -51,6 +68,21 @@ test('update mescla o patch sem apagar os demais campos', () => {
 
   assert.equal(updated.grossAmount, 900);
   assert.equal(updated.condoRegistered, true);
+  assert.equal(updated.guestName, 'Hóspede Teste'); // não mudou
+  assert.equal(updated.checkinTime, '14:00'); // default preservado
+});
+
+test('update aceita documento e horários no patch', () => {
+  const created = createSample();
+  const updated = reservations.update(created.id, {
+    guestDocument: '98.765.432-1',
+    checkinTime: '16:00',
+    checkoutTime: '12:00',
+  });
+
+  assert.equal(updated.guestDocument, '98.765.432-1');
+  assert.equal(updated.checkinTime, '16:00');
+  assert.equal(updated.checkoutTime, '12:00');
   assert.equal(updated.guestName, 'Hóspede Teste'); // não mudou
 });
 

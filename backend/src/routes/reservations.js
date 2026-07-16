@@ -3,7 +3,7 @@
 const express = require('express');
 const reservations = require('../repositories/reservations');
 const icalSync = require('../services/ical-sync');
-const { isIsoDate, isNonNegativeAmount, isNonEmptyString } = require('../validation');
+const { isIsoDate, isNonNegativeAmount, isNonEmptyString, isTime } = require('../validation');
 
 const router = express.Router();
 
@@ -11,11 +11,29 @@ const STATUSES = ['pending', 'complete'];
 
 // Valida os campos de uma reserva (já mesclada com a existente, no caso do
 // PATCH). Retorna a mensagem de erro ou null se estiver tudo certo.
-function validateReservation({ guestName, checkinDate, checkoutDate, grossAmount, status }) {
+function validateReservation({
+  guestName,
+  guestDocument,
+  checkinDate,
+  checkoutDate,
+  checkinTime,
+  checkoutTime,
+  grossAmount,
+  status,
+}) {
   if (!isNonEmptyString(guestName)) return 'guestName é obrigatório';
+  if (guestDocument !== undefined && typeof guestDocument !== 'string') {
+    return 'guestDocument deve ser um texto';
+  }
   if (!isIsoDate(checkinDate)) return `checkinDate inválida: "${checkinDate}". Use YYYY-MM-DD`;
   if (!isIsoDate(checkoutDate)) return `checkoutDate inválida: "${checkoutDate}". Use YYYY-MM-DD`;
   if (checkoutDate <= checkinDate) return 'checkoutDate deve ser posterior a checkinDate';
+  if (checkinTime !== undefined && !isTime(checkinTime)) {
+    return `checkinTime inválido: "${checkinTime}". Use HH:MM`;
+  }
+  if (checkoutTime !== undefined && !isTime(checkoutTime)) {
+    return `checkoutTime inválido: "${checkoutTime}". Use HH:MM`;
+  }
   if (grossAmount !== undefined && !isNonNegativeAmount(grossAmount)) {
     return `grossAmount inválido: "${grossAmount}". Use um número >= 0`;
   }

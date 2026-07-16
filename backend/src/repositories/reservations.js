@@ -7,8 +7,11 @@ function rowToReservation(row) {
   return {
     id: row.id,
     guestName: row.guest_name,
+    guestDocument: row.guest_document,
     checkinDate: row.checkin_date,
     checkoutDate: row.checkout_date,
+    checkinTime: row.checkin_time,
+    checkoutTime: row.checkout_time,
     grossAmount: row.gross_amount,
     condoRegistered: Boolean(row.condo_registered),
     apartmentInfoSent: Boolean(row.apartment_info_sent),
@@ -22,8 +25,11 @@ function rowToReservation(row) {
 
 function create({
   guestName,
+  guestDocument = '',
   checkinDate,
   checkoutDate,
+  checkinTime = '14:00',
+  checkoutTime = '11:00',
   grossAmount = 0,
   status = 'complete',
   source = 'manual',
@@ -32,13 +38,17 @@ function create({
   const db = getDb();
   const stmt = db.prepare(`
     INSERT INTO reservations
-      (guest_name, checkin_date, checkout_date, gross_amount, status, source, ical_uid)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+      (guest_name, guest_document, checkin_date, checkout_date, checkin_time, checkout_time,
+       gross_amount, status, source, ical_uid)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     guestName,
+    guestDocument,
     checkinDate,
     checkoutDate,
+    checkinTime,
+    checkoutTime,
     Number(grossAmount) || 0,
     status,
     source,
@@ -87,8 +97,11 @@ function update(id, patch) {
 
   const merged = {
     guestName: patch.guestName ?? existing.guestName,
+    guestDocument: patch.guestDocument ?? existing.guestDocument,
     checkinDate: patch.checkinDate ?? existing.checkinDate,
     checkoutDate: patch.checkoutDate ?? existing.checkoutDate,
+    checkinTime: patch.checkinTime ?? existing.checkinTime,
+    checkoutTime: patch.checkoutTime ?? existing.checkoutTime,
     grossAmount: patch.grossAmount !== undefined ? Number(patch.grossAmount) : existing.grossAmount,
     condoRegistered:
       patch.condoRegistered !== undefined ? Boolean(patch.condoRegistered) : existing.condoRegistered,
@@ -103,8 +116,11 @@ function update(id, patch) {
   db.prepare(`
     UPDATE reservations SET
       guest_name = ?,
+      guest_document = ?,
       checkin_date = ?,
       checkout_date = ?,
+      checkin_time = ?,
+      checkout_time = ?,
       gross_amount = ?,
       condo_registered = ?,
       apartment_info_sent = ?,
@@ -112,8 +128,11 @@ function update(id, patch) {
     WHERE id = ?
   `).run(
     merged.guestName,
+    merged.guestDocument,
     merged.checkinDate,
     merged.checkoutDate,
+    merged.checkinTime,
+    merged.checkoutTime,
     merged.grossAmount,
     merged.condoRegistered ? 1 : 0,
     merged.apartmentInfoSent ? 1 : 0,

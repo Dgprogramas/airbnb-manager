@@ -18,6 +18,15 @@ function migrate(db) {
   if (!columns.includes('cancelled_at')) {
     db.exec('ALTER TABLE reservations ADD COLUMN cancelled_at TEXT');
   }
+  if (!columns.includes('guest_document')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN guest_document TEXT NOT NULL DEFAULT ''");
+  }
+  if (!columns.includes('checkin_time')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN checkin_time TEXT NOT NULL DEFAULT '14:00'");
+  }
+  if (!columns.includes('checkout_time')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN checkout_time TEXT NOT NULL DEFAULT '11:00'");
+  }
 }
 
 function getDb() {

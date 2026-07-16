@@ -3,7 +3,13 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { isIsoDate, isMonth, isNonNegativeAmount, isNonEmptyString } = require('../src/validation');
+const {
+  isIsoDate,
+  isMonth,
+  isNonNegativeAmount,
+  isNonEmptyString,
+  isTime,
+} = require('../src/validation');
 
 test('isIsoDate aceita datas reais e rejeita formatos/dias inválidos', () => {
   assert.equal(isIsoDate('2026-07-02'), true);
@@ -40,6 +46,20 @@ test('isNonNegativeAmount aceita números e strings numéricas >= 0', () => {
   assert.equal(isNonNegativeAmount(null), false);
   assert.equal(isNonNegativeAmount(true), false);
   assert.equal(isNonNegativeAmount(Infinity), false);
+});
+
+test('isTime aceita HH:MM em 24h e rejeita formatos inválidos', () => {
+  assert.equal(isTime('00:00'), true);
+  assert.equal(isTime('14:00'), true);
+  assert.equal(isTime('23:59'), true);
+
+  assert.equal(isTime('24:00'), false);
+  assert.equal(isTime('14:60'), false);
+  assert.equal(isTime('8:00'), false); // sem zero à esquerda
+  assert.equal(isTime('14h00'), false);
+  assert.equal(isTime(''), false);
+  assert.equal(isTime(null), false);
+  assert.equal(isTime(1400), false);
 });
 
 test('isNonEmptyString rejeita vazio, espaços e não-strings', () => {
