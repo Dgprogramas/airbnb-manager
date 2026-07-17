@@ -3,6 +3,9 @@ node_modules/
 
 # Banco SQLite gerado automaticamente em runtime
 backend/data/
+
+# Screenshots de falha do RPA (Sprint 8)
+backend/data/rpa-logs/
 *.db
 *.db-journal
 *.db-wal

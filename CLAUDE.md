@@ -94,12 +94,16 @@ backend/src/
 │   └── settings.js
 ├── services/          # regras de negócio que combinam repositórios
 │   ├── finance.js     # fechamento financeiro (Sprint 2)
-│   └── ical-sync.js   # sync do iCal via node-ical (Sprint 3)
+│   ├── ical-sync.js   # sync do iCal via node-ical (Sprint 3)
+│   └── condo-rpa.js   # RPA Playwright do cadastro no condomínio (Sprint 8c)
 └── routes/            # cada arquivo exporta um express.Router()
     ├── reservations.js
     ├── expenses.js
     ├── settings.js
     └── finance.js
+
+backend/scripts/
+└── register-condo.js  # teste manual do condo-rpa.js com navegador visível
 ```
 
 Testes em `backend/tests/*.test.js` (`node:test` + banco em memória via
@@ -132,7 +136,8 @@ externo (só `useState`/`useEffect`). Novas telas: criar em `pages/` e ligar no
 ## Modelo de dados
 
 ```
-reservations: id, guest_name, checkin_date, checkout_date, gross_amount,
+reservations: id, guest_name, guest_document, checkin_date, checkout_date,
+              checkin_time, checkout_time, gross_amount,
               condo_registered, apartment_info_sent,
               status ('pending'|'complete'), source ('manual'|'airbnb-ical'),
               ical_uid, cancelled_at, created_at
@@ -151,8 +156,9 @@ settings:     host_split_percent (padrão 30), owner_name (padrão 'Pai'), ical_
   `complete` = dados preenchidos. **Não** significa "estadia finalizada". A
   reserva é **sempre editável**.
 - O **status da estadia** (Futura → Em andamento → Finalizada) é **derivado da
-  data no frontend** (não é armazenado): vira **Finalizada** só após as **11:00
-  do dia do checkout**. Não confundir com o campo `status`.
+  data no frontend** (não é armazenado): vira **Finalizada** só após o horário
+  de `checkout_time` (padrão `11:00`) do dia do checkout. Não confundir com o
+  campo `status`.
 - **`cancelled_at`** é um terceiro conceito: o sync marca a reserva como
   cancelada quando o evento dela **some do feed iCal** (só reservas de
   `source='airbnb-ical'` com check-in de hoje em diante — eventos passados
@@ -176,7 +182,7 @@ de `createdCount`/`skippedCount`.
 | 5 | Frontend: telas de Despesas e Fechamento Mensal | ✅ Concluída |
 | 6 | Frontend: tela de Configurações + navegação entre abas | ✅ Concluída |
 | 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | 🔜 Próxima |
-| 8 | RPA (Playwright) do cadastro de visitantes no portal do **Condomínio Dedicado**, disparado pela UI | Planejada |
+| 8 | RPA (Playwright) do cadastro de visitantes no portal do **Condomínio Dedicado**, disparado pela UI | 🚧 Em andamento (8a/8b/8c concluídas — falta 8d/8e) |
 | 9 | Histórico de fechamentos persistido (tabela `closings`: mês, valores, pago/pendente) — protege contra recálculo retroativo se o split% mudar | Ideia |
 | 10 | Template de mensagem de check-in p/ WhatsApp (placeholders + botão wa.me / copiar) — automatiza o "enviar infos do apê" sem RPA | Ideia |
 | 11 | Dashboard: ocupação, receita por mês, diária média; alertas de check-in próximo sem condomínio/info | Ideia |
@@ -185,46 +191,52 @@ Não implementar funcionalidades de sprints futuras antes da hora.
 
 ## Sprint 8 — RPA do Condomínio Dedicado (detalhes)
 
-Automação do cadastro de hóspedes no app do condomínio (**Condomínio
-Dedicado**), disparada pela UI. Ainda **não implementar** — documentação
-levantada com antecedência.
+Automação do cadastro de hóspedes no portal do condomínio (**Condomínio
+Dedicado**), disparada pela UI. Dividida em sub-sprints; progresso abaixo.
 
-- **Ferramenta:** **Playwright** (headless). O Condomínio Dedicado tem
-  **portal web** (não só app mobile) — confirmado —, então não é preciso
-  Appium nem engenharia reversa da API mobile.
-- **URL de login:**
-  `https://app.condominiodedicado.com.br/morador/default/seguranca/principal`
-- **Formulário de login:** simples — campos **E-mail** e **Senha**, botão
-  **ENTRAR**. Sem captcha visível na tela inicial (validar na prática na hora
-  de implementar).
-- **Funcionalidade alvo:** **"Registro de visitantes"**, dentro da área do
-  morador logado.
+- **8a — Modelo de dados + formulário** ✅ Concluída. `reservations` ganhou
+  `guest_document` (RG), `checkin_time`/`checkout_time` (defaults `14:00`/
+  `11:00`). Formulário de Reservas no frontend preenche esses campos.
+- **8b — Mapeamento do portal** ✅ Concluída. Ver `docs/condo-portal-map.md`
+  — fluxo de telas, campos e seus mapeamentos para `reservations`, levantado
+  a partir de prints reais (sem inspeção de DOM ainda).
+- **8c — Script Playwright standalone** ✅ Concluída (não testada ao vivo).
+  `backend/src/services/condo-rpa.js` (`registerGuest`) + script manual
+  `backend/scripts/register-condo.js`. Ainda não toca no banco além de ler a
+  reserva.
+- **8d — Integração API + UI** 🔜 Próxima. Rota `POST
+  /api/reservations/:id/register-condo`, lock em memória, botão na tela de
+  Reservas.
+- **8e — Robustez** Planejada. Timeout global, testes com Playwright
+  mockado, distinguir erro de sessão/credencial de mudança de layout.
 
-### Fluxo planejado
+### Como o portal funciona (resumo — detalhes em `docs/condo-portal-map.md`)
 
-1. Playwright abre o navegador (headless) e acessa a URL de login.
-2. Preenche e-mail e senha lidos de **variáveis de ambiente** (nunca
-   hardcoded no código nem versionados no Git).
-3. Clica em **ENTRAR**.
-4. Navega até **Registro de visitantes**.
-5. Preenche os dados do hóspede (nome, datas) vindos de uma reserva já
-   completa no banco (`status = 'complete'`).
-6. Salva o cadastro.
-7. Chama a própria API do projeto: `PATCH /api/reservations/:id`
-   com `{ "condoRegistered": true }`.
+- **Ferramenta:** Playwright (Chromium). O Condomínio Dedicado tem portal web
+  em `https://app.condominiodedicado.com.br` — não precisa Appium.
+- **Login:** tela "Acesso do morador" — campos **E-mail** e **Senha**, botão
+  **ENTRAR**. Sem captcha/2FA observado.
+- **Funcionalidade usada:** **Morador → Autorizações → + Novo** (não
+  "Registro de visitantes" — nome revisado após ver o portal de verdade).
+  Tipo de autorização usado: **"Acesso A Unidade"**.
+- **Campos do formulário:** Número do RG, Nome do autorizado, Tipo da
+  autorização, período (De/Até) e horário (Das/Às) — todos obrigatórios.
+- Ao terminar o cadastro no portal, o próximo passo (Sprint 8d) chama
+  `PATCH /api/reservations/:id` com `{ "condoRegistered": true }`.
 
 ### Pontos de atenção
 
-- **Credenciais** do Condomínio Dedicado ficam em um `.env` local, **fora do
-  controle de versão** (adicionar `.env` ao `.gitignore` quando chegarmos
-  nesta sprint).
-- **É o script mais frágil do projeto:** se o Condomínio Dedicado mudar o
-  layout do login ou do formulário de registro de visitantes, os seletores do
-  Playwright quebram e precisam de ajuste.
-- **Termos de uso:** antes de implementar de fato, checar rapidamente os
-  termos do Condomínio Dedicado quanto a automação de acesso. Como é acesso
-  com credencial própria e vínculo legítimo com o condomínio, o risco é baixo,
-  mas convém confirmar.
+- **Credenciais** ficam em `backend/.env` (copiar de `backend/.env.example`),
+  fora do controle de versão. Rodar com
+  `cd backend && npm run register-condo -- <reservationId>`.
+- **É o script mais frágil do projeto:** os seletores de `condo-rpa.js` foram
+  escritos a partir de prints, não de inspeção do DOM real — é esperado
+  precisar de ajuste na primeira execução real (rodar com `headless: false`,
+  como faz o `register-condo.js`, pra acompanhar). Falhas salvam screenshot
+  em `backend/data/rpa-logs/` (fora do Git).
+- **Termos de uso:** ainda não revisados formalmente quanto a automação de
+  acesso. Risco considerado baixo (credencial própria, vínculo legítimo com o
+  condomínio), mas confirmar antes de rodar em produção com frequência.
 
 ## Padrão de commits
 
