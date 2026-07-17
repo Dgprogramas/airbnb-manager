@@ -200,15 +200,37 @@ Dedicado**), disparada pela UI. Dividida em sub-sprints; progresso abaixo.
 - **8b — Mapeamento do portal** ✅ Concluída. Ver `docs/condo-portal-map.md`
   — fluxo de telas, campos e seus mapeamentos para `reservations`, levantado
   a partir de prints reais (sem inspeção de DOM ainda).
-- **8c — Script Playwright standalone** ✅ Concluída (não testada ao vivo).
+- **8c — Script Playwright standalone** ✅ Concluída e **testada ao vivo com
+  sucesso** (cadastro real de hóspede sem acompanhante, 1 pessoa).
   `backend/src/services/condo-rpa.js` (`registerGuest`) + script manual
-  `backend/scripts/register-condo.js`. Ainda não toca no banco além de ler a
-  reserva.
-- **8d — Integração API + UI** 🔜 Próxima. Rota `POST
-  /api/reservations/:id/register-condo`, lock em memória, botão na tela de
-  Reservas.
+  `backend/scripts/register-condo.js` + script de inspeção
+  `backend/scripts/inspect-condo-portal.js` (gera snapshot do HTML real do
+  form, usado pra descobrir os seletores certos). Ainda não toca no banco
+  além de ler a reserva — `condoRegistered` continua manual até a 8d.
+- **8d — Integração API + UI** 🔜 Próxima. Escopo combinado em 16/07:
+  - Rota `POST /api/reservations/:id/register-condo` — valida que a reserva
+    tem RG/horários preenchidos, chama `registerGuest`, e em caso de sucesso
+    faz o `PATCH` interno pra marcar `condoRegistered = true`. Lock em
+    memória pra não rodar duas automações ao mesmo tempo.
+  - **UI:** o checkbox "Cadastrado no condomínio" na tabela de Reservas vira
+    um **botão "Cadastrar"**. Ao clicar, abre um **modal** com: (1) aviso
+    resumindo os dados que serão usados (nome, RG, datas, horários — vindos
+    da própria reserva, sem redigitar), e (2) campos opcionais extras que o
+    portal aceita (Modelo, Placa, Cor do veículo — não persistidos em
+    `reservations` hoje, então precisa decidir se viram colunas novas ou só
+    inputs transientes do modal). Confirmar no modal dispara a chamada à
+    rota acima, com estado de loading (~15–30s) e feedback de sucesso/erro.
+  - **Validação:** o botão "Cadastrar" (ou a confirmação no modal) precisa
+    bloquear o cadastro se faltar RG/horários na reserva, com mensagem clara
+    do que falta preencher.
+  - Em aberto: a coluna "Info enviada" (`apartmentInfoSent`) muda também?
+    Hoje não tem automação associada a ela (isso é a Sprint 10, sem RPA) —
+    confirmar se ela continua como checkbox manual ou se essa sprint mexe
+    nela também.
 - **8e — Robustez** Planejada. Timeout global, testes com Playwright
-  mockado, distinguir erro de sessão/credencial de mudança de layout.
+  mockado, distinguir erro de sessão/credencial de mudança de layout, lidar
+  com acompanhantes (a `registerGuest` já é reaproveitável em loop — falta
+  decidir onde guardar os dados de cada acompanhante no banco).
 
 ### Como o portal funciona (resumo — detalhes em `docs/condo-portal-map.md`)
 
@@ -229,11 +251,15 @@ Dedicado**), disparada pela UI. Dividida em sub-sprints; progresso abaixo.
 - **Credenciais** ficam em `backend/.env` (copiar de `backend/.env.example`),
   fora do controle de versão. Rodar com
   `cd backend && npm run register-condo -- <reservationId>`.
-- **É o script mais frágil do projeto:** os seletores de `condo-rpa.js` foram
-  escritos a partir de prints, não de inspeção do DOM real — é esperado
-  precisar de ajuste na primeira execução real (rodar com `headless: false`,
-  como faz o `register-condo.js`, pra acompanhar). Falhas salvam screenshot
-  em `backend/data/rpa-logs/` (fora do Git).
+- **É o script mais frágil do projeto:** os seletores de `condo-rpa.js` são
+  ids reais confirmados via `inspect-condo-portal.js` (não mais suposição
+  visual), mas ainda podem quebrar se o Condomínio Dedicado mudar o HTML.
+  Rodar com `headless: false` (como faz o `register-condo.js`) pra
+  acompanhar. Falhas salvam screenshot em `backend/data/rpa-logs/` (fora do
+  Git). **Detalhe já mapeado:** o nome do hóspede aparece **abreviado** na
+  listagem do portal (maiúsculas + nomes do meio viram uma letra) — não usar
+  o nome pra validar sucesso, usar `#btn-option-new` voltando a ficar
+  visível.
 - **Termos de uso:** ainda não revisados formalmente quanto a automação de
   acesso. Risco considerado baixo (credencial própria, vínculo legítimo com o
   condomínio), mas confirmar antes de rodar em produção com frequência.
