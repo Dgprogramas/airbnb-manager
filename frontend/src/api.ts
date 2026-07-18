@@ -63,6 +63,19 @@ export async function deleteReservation(id: number): Promise<void> {
   return handle(await fetch(`/api/reservations/${id}`, { method: 'DELETE' }));
 }
 
+export async function registerCondo(
+  id: number,
+  vehicle: { vehicleModel?: string; vehiclePlate?: string; vehicleColor?: string } = {}
+): Promise<Reservation> {
+  return handle(
+    await fetch(`/api/reservations/${id}/register-condo`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify(vehicle),
+    })
+  );
+}
+
 export async function syncReservations(icalUrl?: string): Promise<SyncResult> {
   return handle(
     await fetch('/api/reservations/sync', {

@@ -1,11 +1,21 @@
 import { Fragment, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Check, ChevronDown, Pencil, Plus, RefreshCw, Settings as SettingsIcon, Trash2, X } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Settings as SettingsIcon,
+  Trash2,
+  UserPlus,
+  X,
+} from 'lucide-react';
 import type { Reservation } from '../types';
 import * as api from '../api';
 import Switch from '../components/Switch';
-import Checkbox from '../components/Checkbox';
 import Collapse from '../components/Collapse';
+import IconButton from '../components/IconButton';
 import HeightCollapse from '../components/HeightCollapse';
 
 function formatMoney(value: number): string {
@@ -61,8 +71,6 @@ const btnPrimary =
   'inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-dark disabled:opacity-50';
 const btnSecondary =
   'inline-flex items-center gap-1.5 rounded-full bg-elevated px-4 py-2.5 text-sm font-medium text-content hover:bg-line/60';
-const btnGhost =
-  'inline-flex w-[108px] items-center justify-center gap-1.5 rounded-full bg-elevated/70 px-2.5 py-1.5 text-xs font-medium text-content hover:bg-elevated';
 const inputCls =
   'rounded-xl border-0 bg-elevated px-3 py-2.5 text-sm text-content outline-none ring-1 ring-inset ring-line focus:ring-2 focus:ring-brand/50';
 const labelCls = 'flex flex-col gap-1 text-xs text-muted';
@@ -115,6 +123,11 @@ export default function Reservas() {
   const [savingConfig, setSavingConfig] = useState(false);
 
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+
+  const [condoModalReservation, setCondoModalReservation] = useState<Reservation | null>(null);
+  const [condoForm, setCondoForm] = useState({ vehicleModel: '', vehiclePlate: '', vehicleColor: '' });
+  const [condoLoading, setCondoLoading] = useState(false);
+  const [condoError, setCondoError] = useState<string | null>(null);
 
   function toggleMonth(key: string) {
     setCollapsedMonths((prev) => {
@@ -232,6 +245,50 @@ export default function Reservas() {
     }
   }
 
+  function missingCondoFields(r: Reservation): string[] {
+    const missing: string[] = [];
+    if (!r.guestDocument) missing.push('RG do hóspede');
+    if (!r.checkinTime) missing.push('horário de check-in');
+    if (!r.checkoutTime) missing.push('horário de check-out');
+    return missing;
+  }
+
+  function openCondoModal(r: Reservation) {
+    const missing = missingCondoFields(r);
+    if (missing.length > 0) {
+      setError(`Complete a reserva antes de cadastrar no condomínio — falta: ${missing.join(', ')}.`);
+      return;
+    }
+    setCondoError(null);
+    setCondoForm({ vehicleModel: '', vehiclePlate: '', vehicleColor: '' });
+    setCondoModalReservation(r);
+  }
+
+  function closeCondoModal() {
+    if (condoLoading) return; // não fecha durante a automação em andamento
+    setCondoModalReservation(null);
+  }
+
+  async function handleRegisterCondo() {
+    if (!condoModalReservation) return;
+    setCondoLoading(true);
+    setCondoError(null);
+    try {
+      const updated = await api.registerCondo(condoModalReservation.id, {
+        vehicleModel: condoForm.vehicleModel.trim() || undefined,
+        vehiclePlate: condoForm.vehiclePlate.trim() || undefined,
+        vehicleColor: condoForm.vehicleColor.trim() || undefined,
+      });
+      setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      setCondoModalReservation(null);
+      setMessage('Hóspede cadastrado no condomínio.');
+    } catch (e) {
+      setCondoError((e as Error).message);
+    } finally {
+      setCondoLoading(false);
+    }
+  }
+
   function startComplete(r: Reservation) {
     setClosingPanel(false);
     setCompletingId(r.id);
@@ -305,8 +362,8 @@ export default function Reservas() {
     return (
       <Fragment key={r.id}>
         <tr
-          className={`transition-colors hover:bg-elevated/60 ${
-            needsData ? 'bg-elevated/60' : 'bg-elevated/20'
+          className={`border-l-2 bg-elevated/20 transition-colors hover:bg-elevated/60 ${
+            needsData ? 'border-warning' : 'border-transparent'
           } ${cancelled ? 'opacity-55' : ''}`}
         >
           <td className={td}>
@@ -339,41 +396,46 @@ export default function Reservas() {
             </div>
           </td>
           <td className={`${tdNowrap} text-center`}>
-            <Checkbox
-              checked={r.condoRegistered}
-              onChange={() => toggleFlag(r, 'condoRegistered')}
-              label="Cadastrado no condomínio"
-            />
-          </td>
-          <td className={`${tdNowrap} text-center`}>
-            <Checkbox
-              checked={r.apartmentInfoSent}
-              onChange={() => toggleFlag(r, 'apartmentInfoSent')}
-              label="Informações do apartamento enviadas"
-            />
+            <button
+              type="button"
+              onClick={() => toggleFlag(r, 'condoRegistered')}
+              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+                r.condoRegistered
+                  ? 'bg-success/12 text-success hover:bg-success/20'
+                  : 'bg-muted/12 text-muted hover:bg-muted/20'
+              }`}
+            >
+              {r.condoRegistered ? 'Cadastrado' : 'Pendente'}
+            </button>
           </td>
           <td className={tdNowrap}>
-            <div className="flex items-center gap-1.5">
-              {!cancelled && (
-                <button className={btnGhost} onClick={() => toggleComplete(r)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                  {needsData ? 'Completar' : 'Editar'}
-                </button>
+            <div className="flex items-center justify-end gap-1.5">
+              {!r.condoRegistered && !cancelled && (
+                <IconButton
+                  icon={<UserPlus className="h-3.5 w-3.5" />}
+                  label="Cadastrar no condomínio"
+                  onClick={() => openCondoModal(r)}
+                />
               )}
-              <button
-                className="ml-auto rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger"
+              {!cancelled && (
+                <IconButton
+                  icon={<Pencil className="h-3.5 w-3.5" />}
+                  label={needsData ? 'Completar reserva' : 'Editar reserva'}
+                  onClick={() => toggleComplete(r)}
+                />
+              )}
+              <IconButton
+                icon={<Trash2 className="h-3.5 w-3.5" />}
+                label="Excluir reserva"
                 onClick={() => handleDelete(r)}
-                title="Excluir reserva"
-                aria-label="Excluir reserva"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+                colorClass="bg-danger/10 text-danger hover:bg-danger/20"
+              />
             </div>
           </td>
         </tr>
         {completingId === r.id && (
           <tr className={needsData ? 'bg-elevated/60' : 'bg-elevated/20'}>
-            <td className="p-0" colSpan={8}>
+            <td className="p-0" colSpan={7}>
               <HeightCollapse
                 show={!closingPanel}
                 onClosed={() => {
@@ -651,17 +713,16 @@ export default function Reservas() {
                 </span>
               </button>
               <HeightCollapse show={!collapsed}>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[950px] table-fixed border-collapse text-sm">
+              <div>
+                <table className="w-full table-fixed border-collapse text-sm">
                   <colgroup>
-                    <col />
-                    <col className="w-[95px]" />
-                    <col className="w-[95px]" />
-                    <col className="w-[90px]" />
-                    <col className="w-[125px]" />
-                    <col className="w-[100px]" />
-                    <col className="w-[120px]" />
-                    <col className="w-[170px]" />
+                    <col className="w-[26%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[15%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[13%]" />
                   </colgroup>
                   <thead>
                     <tr className="border-b border-line/50">
@@ -670,8 +731,7 @@ export default function Reservas() {
                       <th className={th}>Check-out</th>
                       <th className={th}>Valor</th>
                       <th className={th}>Status</th>
-                      <th className={th}>Condomínio</th>
-                      <th className={th}>Info enviada</th>
+                      <th className={th}>Cadastro</th>
                       <th className={th}></th>
                     </tr>
                   </thead>
@@ -682,6 +742,100 @@ export default function Reservas() {
             </div>
             );
           })}
+        </div>
+      )}
+
+      {condoModalReservation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className={`w-full max-w-md rounded-2xl p-5 ${surfaceCls}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold">Cadastrar no condomínio</h3>
+              <button
+                className="rounded-full p-1 text-muted hover:bg-elevated disabled:opacity-40"
+                onClick={closeCondoModal}
+                disabled={condoLoading}
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mb-4 rounded-xl bg-elevated/70 p-3 text-xs text-muted">
+              <p className="mb-1.5 font-medium text-content">Dados que serão enviados ao portal:</p>
+              <p>
+                Hóspede: <strong className="text-content">{condoModalReservation.guestName}</strong>
+              </p>
+              <p>
+                RG: <strong className="text-content">{condoModalReservation.guestDocument}</strong>
+              </p>
+              <p>
+                Período:{' '}
+                <strong className="text-content">
+                  {formatDate(condoModalReservation.checkinDate)} {condoModalReservation.checkinTime}
+                </strong>{' '}
+                →{' '}
+                <strong className="text-content">
+                  {formatDate(condoModalReservation.checkoutDate)} {condoModalReservation.checkoutTime}
+                </strong>
+              </p>
+            </div>
+
+            <p className="mb-2 text-xs text-muted">
+              Campos opcionais do veículo (preencha se o hóspede for de carro):
+            </p>
+            <div className="mb-4 grid grid-cols-3 gap-2">
+              <label className={labelCls}>
+                Modelo
+                <input
+                  className={inputCls}
+                  value={condoForm.vehicleModel}
+                  onChange={(e) => setCondoForm({ ...condoForm, vehicleModel: e.target.value })}
+                />
+              </label>
+              <label className={labelCls}>
+                Placa
+                <input
+                  className={inputCls}
+                  value={condoForm.vehiclePlate}
+                  onChange={(e) => setCondoForm({ ...condoForm, vehiclePlate: e.target.value })}
+                />
+              </label>
+              <label className={labelCls}>
+                Cor
+                <input
+                  className={inputCls}
+                  value={condoForm.vehicleColor}
+                  onChange={(e) => setCondoForm({ ...condoForm, vehicleColor: e.target.value })}
+                />
+              </label>
+            </div>
+
+            <Collapse
+              show={!!condoError}
+              className="mb-3 rounded-xl bg-danger/12 px-3 py-2 text-xs text-danger"
+            >
+              {condoError}
+            </Collapse>
+
+            <div className="flex justify-end gap-2">
+              <button className={btnSecondary} onClick={closeCondoModal} disabled={condoLoading}>
+                Cancelar
+              </button>
+              <button className={btnPrimary} onClick={handleRegisterCondo} disabled={condoLoading}>
+                {condoLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Cadastrando… (~15-30s)
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Confirmar cadastro
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

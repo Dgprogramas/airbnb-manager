@@ -3,9 +3,15 @@
 const express = require('express');
 const reservations = require('../repositories/reservations');
 const icalSync = require('../services/ical-sync');
+const { registerGuest, CondoRpaError } = require('../services/condo-rpa');
 const { isIsoDate, isNonNegativeAmount, isNonEmptyString, isTime } = require('../validation');
 
 const router = express.Router();
+
+// Trava em memória: o portal do condomínio não suporta bem duas sessões de
+// automação rodando ao mesmo tempo, então bloqueia cadastros concorrentes
+// para a mesma reserva.
+const registerCondoLocks = new Set();
 
 const STATUSES = ['pending', 'complete'];
 
@@ -91,6 +97,59 @@ router.patch('/:id', (req, res) => {
   const error = validateReservation(merged);
   if (error) return res.status(400).json({ error });
   res.json(reservations.update(req.params.id, req.body));
+});
+
+// POST /api/reservations/:id/register-condo — dispara o RPA (Playwright) que
+// cadastra o hóspede como "Autorização" no portal do Condomínio Dedicado.
+router.post('/:id/register-condo', async (req, res, next) => {
+  const id = req.params.id;
+  const reservation = reservations.findById(id);
+  if (!reservation) {
+    return res.status(404).json({ error: `Reserva #${id} não encontrada` });
+  }
+  if (!reservation.guestDocument) {
+    return res
+      .status(400)
+      .json({ error: 'Falta o RG do hóspede — complete a reserva antes de cadastrar no condomínio' });
+  }
+  if (!reservation.checkinTime || !reservation.checkoutTime) {
+    return res
+      .status(400)
+      .json({ error: 'Faltam os horários de check-in/check-out — complete a reserva antes de cadastrar no condomínio' });
+  }
+  if (reservation.condoRegistered) {
+    return res.status(400).json({ error: 'Esta reserva já está cadastrada no condomínio' });
+  }
+  if (registerCondoLocks.has(id)) {
+    return res.status(409).json({ error: 'Já existe um cadastro em andamento para esta reserva' });
+  }
+
+  registerCondoLocks.add(id);
+  try {
+    await registerGuest({
+      guestName: reservation.guestName,
+      guestDocument: reservation.guestDocument,
+      checkinDate: reservation.checkinDate,
+      checkoutDate: reservation.checkoutDate,
+      checkinTime: reservation.checkinTime,
+      checkoutTime: reservation.checkoutTime,
+      vehicleModel: req.body.vehicleModel,
+      vehiclePlate: req.body.vehiclePlate,
+      vehicleColor: req.body.vehicleColor,
+    });
+    res.json(reservations.update(id, { condoRegistered: true }));
+  } catch (err) {
+    if (err instanceof CondoRpaError) {
+      // Erro de configuração (credencial/RG ausente) é culpa do request/ambiente
+      // → 400; qualquer outra fase é o portal externo falhando → 502. A fase vai
+      // no corpo pra UI poder orientar melhor o usuário.
+      const status = err.phase === 'config' ? 400 : 502;
+      return res.status(status).json({ error: err.message, phase: err.phase });
+    }
+    next(err);
+  } finally {
+    registerCondoLocks.delete(id);
+  }
 });
 
 // DELETE /api/reservations/:id

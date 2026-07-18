@@ -182,7 +182,7 @@ de `createdCount`/`skippedCount`.
 | 5 | Frontend: telas de Despesas e Fechamento Mensal | ✅ Concluída |
 | 6 | Frontend: tela de Configurações + navegação entre abas | ✅ Concluída |
 | 7 | Geração de Pix copia-e-cola no fechamento, com valor do split | 🔜 Próxima |
-| 8 | RPA (Playwright) do cadastro de visitantes no portal do **Condomínio Dedicado**, disparado pela UI | 🚧 Em andamento (8a/8b/8c concluídas — falta 8d/8e) |
+| 8 | RPA (Playwright) do cadastro de visitantes no portal do **Condomínio Dedicado**, disparado pela UI | 🚧 Em andamento (8a–8d concluídas; 8e parcial — falta só acompanhantes) |
 | 9 | Histórico de fechamentos persistido (tabela `closings`: mês, valores, pago/pendente) — protege contra recálculo retroativo se o split% mudar | Ideia |
 | 10 | Template de mensagem de check-in p/ WhatsApp (placeholders + botão wa.me / copiar) — automatiza o "enviar infos do apê" sem RPA | Ideia |
 | 11 | Dashboard: ocupação, receita por mês, diária média; alertas de check-in próximo sem condomínio/info | Ideia |
@@ -205,32 +205,50 @@ Dedicado**), disparada pela UI. Dividida em sub-sprints; progresso abaixo.
   `backend/src/services/condo-rpa.js` (`registerGuest`) + script manual
   `backend/scripts/register-condo.js` + script de inspeção
   `backend/scripts/inspect-condo-portal.js` (gera snapshot do HTML real do
-  form, usado pra descobrir os seletores certos). Ainda não toca no banco
-  além de ler a reserva — `condoRegistered` continua manual até a 8d.
-- **8d — Integração API + UI** 🔜 Próxima. Escopo combinado em 16/07:
-  - Rota `POST /api/reservations/:id/register-condo` — valida que a reserva
-    tem RG/horários preenchidos, chama `registerGuest`, e em caso de sucesso
-    faz o `PATCH` interno pra marcar `condoRegistered = true`. Lock em
-    memória pra não rodar duas automações ao mesmo tempo.
-  - **UI:** o checkbox "Cadastrado no condomínio" na tabela de Reservas vira
-    um **botão "Cadastrar"**. Ao clicar, abre um **modal** com: (1) aviso
-    resumindo os dados que serão usados (nome, RG, datas, horários — vindos
-    da própria reserva, sem redigitar), e (2) campos opcionais extras que o
-    portal aceita (Modelo, Placa, Cor do veículo — não persistidos em
-    `reservations` hoje, então precisa decidir se viram colunas novas ou só
-    inputs transientes do modal). Confirmar no modal dispara a chamada à
-    rota acima, com estado de loading (~15–30s) e feedback de sucesso/erro.
-  - **Validação:** o botão "Cadastrar" (ou a confirmação no modal) precisa
-    bloquear o cadastro se faltar RG/horários na reserva, com mensagem clara
-    do que falta preencher.
-  - Em aberto: a coluna "Info enviada" (`apartmentInfoSent`) muda também?
-    Hoje não tem automação associada a ela (isso é a Sprint 10, sem RPA) —
-    confirmar se ela continua como checkbox manual ou se essa sprint mexe
-    nela também.
-- **8e — Robustez** Planejada. Timeout global, testes com Playwright
-  mockado, distinguir erro de sessão/credencial de mudança de layout, lidar
-  com acompanhantes (a `registerGuest` já é reaproveitável em loop — falta
-  decidir onde guardar os dados de cada acompanhante no banco).
+  form, usado pra descobrir os seletores certos).
+- **8d — Integração API + UI** ✅ Concluída (18/07). Escopo implementado:
+  - Rota `POST /api/reservations/:id/register-condo` (`routes/reservations.js`)
+    valida que a reserva tem RG e horários preenchidos, rejeita se já estiver
+    `condoRegistered`, chama `registerGuest` e, em caso de sucesso, faz o
+    `update` interno marcando `condoRegistered = true`. Lock em memória
+    (`Set` de ids) evita duas automações concorrentes na mesma reserva —
+    responde `409` se já houver uma em andamento. Erros de RPA
+    (`CondoRpaError`) voltam como `502` com a mensagem de erro.
+  - `registerGuest` (`condo-rpa.js`) ganhou parâmetros opcionais
+    `vehicleModel`/`vehiclePlate`/`vehicleColor`, preenchidos no formulário
+    (`#no_modelo`/`#nu_placa`/`#no_cor`) só quando informados.
+  - **UI:** o checkbox "Cadastrado no condomínio" na tabela de Reservas virou
+    um **botão "Cadastrar"** (some quando `condoRegistered` já é `true`,
+    voltando a mostrar o check verde). Clicar abre um **modal** (overlay na
+    própria tela de Reservas, sem navegação) com: (1) resumo dos dados que
+    serão usados (nome, RG, datas, horários — vindos da própria reserva,
+    sem redigitar) e (2) campos opcionais de veículo (Modelo, Placa, Cor).
+    Confirmar dispara a chamada à rota acima com estado de loading
+    (~15–30s) e feedback de sucesso/erro dentro do próprio modal.
+  - **Decisão:** Modelo/Placa/Cor ficam **transientes** — não viram colunas
+    em `reservations`, só são enviados pro portal no momento do cadastro.
+  - **Decisão:** a coluna "Info enviada" (`apartmentInfoSent`) **não muda**
+    nessa sprint — continua checkbox manual (sem automação associada; isso
+    é escopo da Sprint 10, template de WhatsApp).
+  - **Validação:** front bloqueia a abertura do modal (mensagem de erro
+    listando o que falta) se a reserva não tiver RG ou horários; o backend
+    valida de novo por segurança.
+- **8e — Robustez** 🚧 Parcial (18/07). **Feito:**
+  - **Timeout global** (`globalTimeoutMs`, default 120s) além do per-action do
+    Playwright — protege contra travamento fora de uma ação (aba presa).
+  - **Fases nomeadas** no `CondoRpaError` (`phase`: `config`/`login`/
+    `navigation`/`form`/`submit`/`timeout`) — distinguem erro de credencial
+    (aponta pro `.env`) de mudança de layout (seletor sumiu). A rota mapeia
+    `config` → HTTP 400 e o resto → 502, com a fase no corpo da resposta.
+  - **Detecção de login**: confirma que o menu "Morador" aparece pós-login;
+    se não, erro de fase `login` (credencial/portal fora do ar), não `form`.
+  - **Testes mockados** (`backend/tests/condo-rpa.test.js`): launcher fake
+    injetado via `options.launcher` grava a sequência de ações sem abrir o
+    Chrome — cobre caminho feliz, campos de veículo, falta de credencial/RG,
+    falha de login, mudança de layout e timeout global (7 casos).
+  - **Falta (adiado):** acompanhantes — cadastrar vários hóspedes por reserva
+    reusando `registerGuest` em loop; pendente decidir onde guardar os dados
+    de cada acompanhante (tabela nova vs. JSON numa coluna).
 
 ### Como o portal funciona (resumo — detalhes em `docs/condo-portal-map.md`)
 
@@ -243,8 +261,8 @@ Dedicado**), disparada pela UI. Dividida em sub-sprints; progresso abaixo.
   Tipo de autorização usado: **"Acesso A Unidade"**.
 - **Campos do formulário:** Número do RG, Nome do autorizado, Tipo da
   autorização, período (De/Até) e horário (Das/Às) — todos obrigatórios.
-- Ao terminar o cadastro no portal, o próximo passo (Sprint 8d) chama
-  `PATCH /api/reservations/:id` com `{ "condoRegistered": true }`.
+- Ao terminar o cadastro no portal, `POST /api/reservations/:id/register-condo`
+  marca `condoRegistered = true` automaticamente (Sprint 8d).
 
 ### Pontos de atenção
 
