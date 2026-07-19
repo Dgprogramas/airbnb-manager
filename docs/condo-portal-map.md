@@ -101,13 +101,14 @@ visível — indica que voltamos pra listagem.
   tabelas acima). `getByLabel` não funcionava — a associação label→input do
   portal não é confiável (um teste real mostrou `getByLabel(/Tipo da
   autorização/i)` resolvendo para `#no_modelo`, o campo errado).
-- **Confirmação de sucesso ao salvar**: `condo-rpa.js` assume que o form
-  fecha e `#nu_documento` desanexa do DOM. Ainda não validado numa rodada
-  real de ponta a ponta — se o portal usar um alert/confirm de navegador ou
-  um toast que não fecha o form, esse critério precisa ajuste.
-- **Datepicker (`#dt_periodo_inicio`/`#dt_periodo_fim`)**: o script preenche
-  o valor direto via `.fill()` e pressiona Escape pra fechar qualquer popup
-  do calendário — ainda não confirmado se isso é suficiente ou se o widget
-  exige clique nos dias do calendário.
+- **Confirmação de sucesso ao salvar**: ✅ resolvido — o sinal confiável é o
+  `#btn-option-new` voltar a ficar visível (ver seção 5).
+- **Datepicker (`#dt_periodo_inicio`/`#dt_periodo_fim`)**: ✅ resolvido — o
+  script seta o valor direto via JS (`evaluate` + eventos `input`/`change`),
+  **sem focar o campo**. Usar `.fill()` abria o popup do calendário
+  (`#ui-datepicker-div`), que em headless fica por cima de outros campos e
+  intercepta os cliques seguintes (falha real vista na 8e). Antes de clicar
+  em Salvar, o script também esconde `#toast-container` e
+  `#ui-datepicker-div`, que podem sobrepor o botão.
 - **Nenhum termo de uso foi revisado ainda** quanto à automação de acesso —
   item do CLAUDE.md ainda pendente antes de rodar o robô em produção.

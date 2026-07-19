@@ -69,7 +69,7 @@ function findByIcalUid(icalUid) {
   return rowToReservation(row);
 }
 
-function list({ month, pendingOnly } = {}) {
+function list({ month, year, pendingOnly } = {}) {
   const db = getDb();
   let sql = 'SELECT * FROM reservations';
   const conditions = [];
@@ -78,6 +78,10 @@ function list({ month, pendingOnly } = {}) {
   if (month) {
     conditions.push('checkin_date LIKE ?');
     params.push(`${month}%`);
+  }
+  if (year) {
+    conditions.push('checkin_date LIKE ?');
+    params.push(`${year}-%`);
   }
   if (pendingOnly) {
     conditions.push("status = 'pending'");

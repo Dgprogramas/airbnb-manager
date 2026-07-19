@@ -13,7 +13,9 @@ const PORT = process.env.PORT || 3001;
 const app = express();
 
 app.use(cors()); // app local, sem segredo a proteger
-app.use(express.json());
+// Limite maior que o padrão (100kb) por causa do import de CSV de ganhos,
+// que chega como texto no corpo JSON.
+app.use(express.json({ limit: '2mb' }));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/reservations', reservationRoutes);

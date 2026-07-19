@@ -28,10 +28,15 @@ function makeFake({ failAt = () => null, hang = () => false } = {}) {
     click: () => record('click', target),
     selectOption: (v) => record('selectOption', target, v),
     waitFor: (opts) => record('waitFor', target, opts),
+    // No código real, evaluate seta o value das datas via JS (2º arg) sem
+    // focar o campo — o fake só grava o valor recebido.
+    evaluate: (_fn, v) => record('evaluate', target, v),
   });
   const page = {
     setDefaultTimeout: (ms) => calls.push({ action: 'setDefaultTimeout', value: ms }),
     goto: (url) => record('goto', url),
+    evaluate: () => record('evaluate', 'page'),
+    waitForTimeout: () => Promise.resolve(), // sem esperas reais nos testes
     getByPlaceholder: (t) => locator(`placeholder:${t}`),
     getByRole: (role, opts) => locator(`role:${role}:${opts && opts.name}`),
     getByText: (t) => locator(`text:${t}`),
@@ -86,8 +91,9 @@ test('caminho feliz: preenche o formulário e confirma o salvamento', async () =
     assert.equal(nome.value, VALID.guestName);
     const tipo = calls.find((c) => c.action === 'selectOption' && c.target === '#id_morador_autorizacao_tipo');
     assert.equal(tipo.value, '425'); // Acesso A Unidade
-    // Datas convertidas para DD/MM/AAAA
-    const de = calls.find((c) => c.action === 'fill' && c.target === '#dt_periodo_inicio');
+    // Datas convertidas para DD/MM/AAAA (setadas via evaluate, sem focar —
+    // o datepicker do portal não pode abrir)
+    const de = calls.find((c) => c.action === 'evaluate' && c.target === '#dt_periodo_inicio');
     assert.equal(de.value, '01/08/2026');
     // Salvou e fechou o browser
     assert.ok(has(calls, 'click', '#btn-option-save'));

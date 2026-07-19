@@ -126,19 +126,66 @@ async function runSteps(page, data) {
     if (data.vehiclePlate) await page.locator('#nu_placa').fill(data.vehiclePlate);
     if (data.vehicleColor) await page.locator('#no_cor').fill(data.vehicleColor);
 
-    // Campos de data usam um datepicker (jQuery UI); preenchemos o valor
-    // direto e fechamos o popup do calendário clicando fora dele (Escape
-    // sozinho não fechou de forma confiável num teste real).
-    await page.locator('#dt_periodo_inicio').fill(toPortalDate(data.checkinDate));
-    await page.locator('#no_autorizacao').click();
-    await page.locator('#dt_periodo_fim').fill(toPortalDate(data.checkoutDate));
-    await page.locator('#no_autorizacao').click();
+    // Campos de data usam um datepicker jQuery UI e são ENCADEADOS: mudar o
+    // "De" dispara um handler do portal que limpa/reseta o "Até" (visto em
+    // falha real — o valor setado no "Até" sumia antes do Salvar). Também
+    // não dá pra usar .fill(): focar o campo abre o popup do calendário, que
+    // em headless cobre outros campos e intercepta cliques. Estratégia:
+    // setar via API do datepicker (equivale a escolher o dia no calendário),
+    // esperar os handlers do portal rodarem e conferir/reaplicar os valores
+    // antes de prosseguir.
+    const setDateField = (selector, br) =>
+      page.locator(selector).evaluate((el, v) => {
+        const jq = window.jQuery;
+        const [d, m, y] = v.split('/').map(Number);
+        if (jq && jq(el).datepicker) {
+          jq(el).datepicker('setDate', new Date(y, m - 1, d));
+          jq(el).datepicker('hide');
+        } else {
+          el.value = v;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, br);
+    const readValue = (selector) => page.locator(selector).evaluate((el) => el.value);
+    // Reaplica sem disparar eventos — não acorda o handler que limpa o campo.
+    const forceValue = (selector, v) =>
+      page.locator(selector).evaluate((el, val) => {
+        el.value = val;
+      }, v);
+
+    const deBr = toPortalDate(data.checkinDate);
+    const ateBr = toPortalDate(data.checkoutDate);
+
+    await setDateField('#dt_periodo_inicio', deBr);
+    await page.waitForTimeout(400); // deixa o handler encadeado do portal rodar
+    await setDateField('#dt_periodo_fim', ateBr);
+
+    // Confere se algum handler tardio limpou os campos; reaplica se preciso.
+    for (let i = 0; i < 3; i++) {
+      await page.waitForTimeout(400);
+      const de = await readValue('#dt_periodo_inicio');
+      const ate = await readValue('#dt_periodo_fim');
+      // (no mock dos testes readValue devolve undefined — só corrige strings)
+      const deOk = typeof de !== 'string' || de === deBr;
+      const ateOk = typeof ate !== 'string' || ate === ateBr;
+      if (deOk && ateOk) break;
+      if (!deOk) await forceValue('#dt_periodo_inicio', deBr);
+      if (!ateOk) await forceValue('#dt_periodo_fim', ateBr);
+    }
 
     await page.locator('#hr_periodo_inicio').fill(data.checkinTime);
     await page.locator('#hr_periodo_fim').fill(data.checkoutTime);
   });
 
   await step(PHASE.SUBMIT, 'O cadastro foi enviado mas não foi possível confirmar que salvou', async () => {
+    // Toasts do portal (#toast-container) e o popup do datepicker podem
+    // sobrepor o botão e interceptar o clique — esconde antes de salvar.
+    await page.evaluate(() => {
+      for (const id of ['toast-container', 'ui-datepicker-div']) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      }
+    });
     await page.locator('#btn-option-save').click();
 
     // Sucesso esperado: o formulário fecha e volta pra listagem, onde o

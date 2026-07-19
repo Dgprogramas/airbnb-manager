@@ -3,6 +3,7 @@
 const express = require('express');
 const reservations = require('../repositories/reservations');
 const icalSync = require('../services/ical-sync');
+const csvImport = require('../services/airbnb-csv-import');
 const { registerGuest, CondoRpaError } = require('../services/condo-rpa');
 const { isIsoDate, isNonNegativeAmount, isNonEmptyString, isTime } = require('../validation');
 
@@ -49,10 +50,11 @@ function validateReservation({
   return null;
 }
 
-// GET /api/reservations?month=YYYY-MM&pendingOnly=true
+// GET /api/reservations?month=YYYY-MM&year=YYYY&pendingOnly=true
 router.get('/', (req, res) => {
   const result = reservations.list({
     month: req.query.month || undefined,
+    year: req.query.year || undefined,
     pendingOnly: req.query.pendingOnly === 'true',
   });
   res.json(result);
@@ -71,6 +73,17 @@ router.post('/sync', async (req, res, next) => {
   try {
     const result = await icalSync.syncFromIcal({ icalUrl: req.body.icalUrl });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/reservations/import-csv — importa o relatório de ganhos do Airbnb
+// (CSV exportado em Pagamentos → Relatórios). Completa reservas pendentes com
+// nome/valor e cria as que não existem (inclusive passadas, que o iCal não traz).
+router.post('/import-csv', (req, res, next) => {
+  try {
+    res.json(csvImport.importFromCsv(req.body.csv));
   } catch (err) {
     next(err);
   }

@@ -1,8 +1,9 @@
-import { Fragment, useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import {
   Check,
   ChevronDown,
+  FileUp,
   Pencil,
   Plus,
   RefreshCw,
@@ -16,7 +17,9 @@ import * as api from '../api';
 import Switch from '../components/Switch';
 import Collapse from '../components/Collapse';
 import IconButton from '../components/IconButton';
+import DateRangePicker from '../components/DateRangePicker';
 import HeightCollapse from '../components/HeightCollapse';
+import YearPicker from '../components/YearPicker';
 
 function formatMoney(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -67,6 +70,12 @@ function groupByMonth(items: Reservation[]): { key: string; rows: Reservation[] 
   return groups;
 }
 
+// 'YYYY-MM' do mês corrente — usado pra destacar e priorizar o mês atual.
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 const btnPrimary =
   'inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-dark disabled:opacity-50';
 const btnSecondary =
@@ -102,8 +111,11 @@ export default function Reservas() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  const [year, setYear] = useState(() => new Date().getFullYear());
   const [pendingOnly, setPendingOnly] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -113,6 +125,8 @@ export default function Reservas() {
   const [completeForm, setCompleteForm] = useState({
     guestName: '',
     guestDocument: '',
+    checkinDate: '',
+    checkoutDate: '',
     checkinTime: '14:00',
     checkoutTime: '11:00',
     grossAmount: '',
@@ -122,7 +136,11 @@ export default function Reservas() {
   const [icalUrl, setIcalUrl] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
 
-  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  // Meses expandidos (só o mês atual começa aberto — o histórico importado
+  // do CSV fica recolhido, sem afogar a tela).
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(
+    () => new Set([currentMonthKey()])
+  );
 
   const [condoModalReservation, setCondoModalReservation] = useState<Reservation | null>(null);
   const [condoForm, setCondoForm] = useState({ vehicleModel: '', vehiclePlate: '', vehicleColor: '' });
@@ -130,7 +148,7 @@ export default function Reservas() {
   const [condoError, setCondoError] = useState<string | null>(null);
 
   function toggleMonth(key: string) {
-    setCollapsedMonths((prev) => {
+    setExpandedMonths((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -142,7 +160,7 @@ export default function Reservas() {
     setLoading(true);
     setError(null);
     try {
-      setItems(await api.listReservations({ pendingOnly }));
+      setItems(await api.listReservations({ year, pendingOnly }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -152,7 +170,7 @@ export default function Reservas() {
 
   useEffect(() => {
     load();
-  }, [pendingOnly]);
+  }, [year, pendingOnly]);
 
   useEffect(() => {
     api
@@ -212,10 +230,43 @@ export default function Reservas() {
     }
   }
 
+  // Importa o CSV de ganhos do Airbnb: completa reservas pendentes com
+  // nome/valor e cria as que não existem (inclusive as já passadas, que o
+  // iCal não traz mais).
+  async function handleImportCsv(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite reimportar o mesmo arquivo depois
+    if (!file) return;
+    setImporting(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const csv = await file.text();
+      const result = await api.importCsv(csv);
+      const parts = [
+        `${result.createdCount} criada(s)`,
+        `${result.updatedCount} completada(s)`,
+        `${result.skippedCount} já existente(s)`,
+      ];
+      setMessage(`Importação concluída: ${parts.join(', ')}.`);
+      if (result.createdCount > 0 || result.updatedCount > 0) {
+        await load();
+      }
+    } catch (e2) {
+      setError((e2 as Error).message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    if (!form.checkinDate || !form.checkoutDate) {
+      setError('Escolha o período da estadia (check-in e check-out).');
+      return;
+    }
     try {
       await api.createReservation({
         guestName: form.guestName,
@@ -295,6 +346,8 @@ export default function Reservas() {
     setCompleteForm({
       guestName: r.guestName.startsWith('Reserva Airbnb') ? '' : r.guestName,
       guestDocument: r.guestDocument,
+      checkinDate: r.checkinDate,
+      checkoutDate: r.checkoutDate,
       checkinTime: r.checkinTime || '14:00',
       checkoutTime: r.checkoutTime || '11:00',
       grossAmount: r.grossAmount ? String(r.grossAmount) : '',
@@ -337,10 +390,16 @@ export default function Reservas() {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    if (!completeForm.checkinDate || !completeForm.checkoutDate) {
+      setError('Escolha o período da estadia (check-in e check-out).');
+      return;
+    }
     try {
       await api.updateReservation(id, {
         guestName: completeForm.guestName,
         guestDocument: completeForm.guestDocument.trim(),
+        checkinDate: completeForm.checkinDate,
+        checkoutDate: completeForm.checkoutDate,
         checkinTime: completeForm.checkinTime,
         checkoutTime: completeForm.checkoutTime,
         grossAmount: Number(completeForm.grossAmount) || 0,
@@ -410,11 +469,14 @@ export default function Reservas() {
           </td>
           <td className={tdNowrap}>
             <div className="flex items-center justify-end gap-1.5">
-              {!r.condoRegistered && !cancelled && (
+              {!cancelled && (
                 <IconButton
                   icon={<UserPlus className="h-3.5 w-3.5" />}
-                  label="Cadastrar no condomínio"
+                  label={
+                    r.condoRegistered ? 'Já cadastrado no condomínio' : 'Cadastrar no condomínio'
+                  }
                   onClick={() => openCondoModal(r)}
+                  disabled={r.condoRegistered}
                 />
               )}
               {!cancelled && (
@@ -429,6 +491,7 @@ export default function Reservas() {
                 label="Excluir reserva"
                 onClick={() => handleDelete(r)}
                 colorClass="bg-danger/10 text-danger hover:bg-danger/20"
+                tooltipAlign="right"
               />
             </div>
           </td>
@@ -475,6 +538,16 @@ export default function Reservas() {
                         setCompleteForm({ ...completeForm, guestDocument: e.target.value })
                       }
                       placeholder="Para o condomínio"
+                    />
+                  </label>
+                  <label className="flex w-60 flex-col gap-1 text-xs text-muted">
+                    Período (check-in → check-out)
+                    <DateRangePicker
+                      start={completeForm.checkinDate}
+                      end={completeForm.checkoutDate}
+                      onChange={(start, end) =>
+                        setCompleteForm({ ...completeForm, checkinDate: start, checkoutDate: end })
+                      }
                     />
                   </label>
                   <label className="flex w-32 flex-col gap-1 text-xs text-muted">
@@ -532,7 +605,75 @@ export default function Reservas() {
     );
   }
 
-  const groups = groupByMonth(items);
+  // Tabela de um mês — usada tanto no card do mês atual quanto nas linhas do
+  // arquivo de meses anteriores (evita duplicar o cabeçalho e o colgroup).
+  function renderMonthTable(rows: Reservation[]) {
+    return (
+      <table className="w-full table-fixed border-collapse text-sm">
+        <colgroup>
+          <col className="w-[26%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[11%]" />
+          <col className="w-[15%]" />
+          <col className="w-[11%]" />
+          <col className="w-[13%]" />
+        </colgroup>
+        <thead>
+          <tr className="border-b border-line/50">
+            <th className={th}>Hóspede</th>
+            <th className={th}>Check-in</th>
+            <th className={th}>Check-out</th>
+            <th className={th}>Valor</th>
+            <th className={th}>Status</th>
+            <th className={th}>Condomínio</th>
+            <th className={th}></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line/40">{rows.map((r) => renderRow(r))}</tbody>
+      </table>
+    );
+  }
+
+  // Linha compacta de um mês (cabeçalho clicável + tabela colapsável). Mesma
+  // aparência no "Mês atual" e no "Outros meses" — só o rótulo da seção muda.
+  function renderMonthRow(g: { key: string; rows: Reservation[] }) {
+    const collapsed = !expandedMonths.has(g.key);
+    return (
+      <div key={g.key}>
+        <button
+          type="button"
+          onClick={() => toggleMonth(g.key)}
+          aria-expanded={!collapsed}
+          className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left transition-colors hover:bg-elevated/50 ${
+            collapsed ? '' : 'border-b border-line/50'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <ChevronDown
+              className={`h-3.5 w-3.5 text-muted/70 transition-transform duration-300 ${
+                collapsed ? '-rotate-90' : ''
+              }`}
+            />
+            <h3 className="text-sm font-medium capitalize text-content">{monthLabel(g.key)}</h3>
+          </div>
+          <span className="text-xs text-muted/80">
+            {g.rows.length} {g.rows.length === 1 ? 'reserva' : 'reservas'}
+          </span>
+        </button>
+        <HeightCollapse show={!collapsed}>
+          <div>{renderMonthTable(g.rows)}</div>
+        </HeightCollapse>
+      </div>
+    );
+  }
+
+  // Mês atual e demais meses seguem a mesma lista compacta, em seções
+  // separadas; os "outros meses" vêm do mais recente pro mais antigo.
+  const nowKey = currentMonthKey();
+  const chronological = groupByMonth(items);
+  const currentGroup = chronological.find((g) => g.key === nowKey) ?? null;
+  const otherGroups = chronological.filter((g) => g.key !== nowKey).reverse();
 
   return (
     <section>
@@ -542,6 +683,22 @@ export default function Reservas() {
           <button className={btnPrimary} onClick={handleSync} disabled={syncing}>
             <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Sincronizando…' : 'Sincronizar com Airbnb'}
+          </button>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImportCsv}
+          />
+          <button
+            className={btnSecondary}
+            onClick={() => csvInputRef.current?.click()}
+            disabled={importing}
+            title="Importar o relatório de ganhos do Airbnb (CSV) — traz nome, valor e reservas passadas"
+          >
+            <FileUp className="h-4 w-4" />
+            {importing ? 'Importando…' : 'Importar CSV'}
           </button>
           <button className={btnSecondary} onClick={() => setShowForm((s) => !s)}>
             {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
@@ -581,10 +738,13 @@ export default function Reservas() {
         </div>
       </Collapse>
 
-      <label className="my-3.5 flex items-center gap-2.5 text-sm text-muted">
-        <Switch checked={pendingOnly} onChange={() => setPendingOnly((v) => !v)} />
-        Mostrar só com dados pendentes
-      </label>
+      <div className="mb-4 mt-7 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2.5 text-sm text-muted">
+          <Switch checked={pendingOnly} onChange={() => setPendingOnly((v) => !v)} />
+          Mostrar só com dados pendentes
+        </label>
+        <YearPicker value={year} onChange={setYear} />
+      </div>
 
       <Collapse
         show={!!message}
@@ -621,24 +781,14 @@ export default function Reservas() {
                 placeholder="Para o condomínio"
               />
             </label>
-            <label className={labelCls}>
-              Check-in
-              <input
-                type="date"
-                className={inputCls}
-                value={form.checkinDate}
-                onChange={(e) => setForm({ ...form, checkinDate: e.target.value })}
-                required
-              />
-            </label>
-            <label className={labelCls}>
-              Check-out
-              <input
-                type="date"
-                className={inputCls}
-                value={form.checkoutDate}
-                onChange={(e) => setForm({ ...form, checkoutDate: e.target.value })}
-                required
+            <label className={`${labelCls} min-w-[230px]`}>
+              Período (check-in → check-out)
+              <DateRangePicker
+                start={form.checkinDate}
+                end={form.checkoutDate}
+                onChange={(start, end) =>
+                  setForm({ ...form, checkinDate: start, checkoutDate: end })
+                }
               />
             </label>
             <label className={labelCls}>
@@ -683,65 +833,34 @@ export default function Reservas() {
         <p className="text-muted">Carregando…</p>
       ) : items.length === 0 ? (
         <p className={`rounded-2xl p-8 text-center text-muted ${surfaceCls}`}>
-          Nenhuma reserva. Clique em “Sincronizar com Airbnb” ou “Nova reserva”.
+          Nenhuma reserva em {year}. Clique em “Sincronizar com Airbnb”, “Importar CSV” ou “Nova
+          reserva” — ou troque o ano ao lado do filtro.
         </p>
       ) : (
-        /* Seção Tabela */
         <div className="mt-6 space-y-6">
-          {groups.map((g) => {
-            const collapsed = collapsedMonths.has(g.key);
-            return (
-            <div key={g.key} className={`overflow-hidden rounded-2xl ${surfaceCls}`}>
-              <button
-                type="button"
-                onClick={() => toggleMonth(g.key)}
-                aria-expanded={!collapsed}
-                className={`flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-elevated/50 ${
-                  collapsed ? '' : 'border-b border-line/50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <ChevronDown
-                    className={`h-4 w-4 text-muted transition-transform duration-300 ${
-                      collapsed ? '-rotate-90' : ''
-                    }`}
-                  />
-                  <h3 className="text-sm font-semibold capitalize text-content">{monthLabel(g.key)}</h3>
-                </div>
-                <span className="text-xs text-muted">
-                  {g.rows.length} {g.rows.length === 1 ? 'reserva' : 'reservas'}
-                </span>
-              </button>
-              <HeightCollapse show={!collapsed}>
-              <div>
-                <table className="w-full table-fixed border-collapse text-sm">
-                  <colgroup>
-                    <col className="w-[26%]" />
-                    <col className="w-[12%]" />
-                    <col className="w-[12%]" />
-                    <col className="w-[11%]" />
-                    <col className="w-[15%]" />
-                    <col className="w-[11%]" />
-                    <col className="w-[13%]" />
-                  </colgroup>
-                  <thead>
-                    <tr className="border-b border-line/50">
-                      <th className={th}>Hóspede</th>
-                      <th className={th}>Check-in</th>
-                      <th className={th}>Check-out</th>
-                      <th className={th}>Valor</th>
-                      <th className={th}>Status</th>
-                      <th className={th}>Cadastro</th>
-                      <th className={th}></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/40">{g.rows.map((r) => renderRow(r))}</tbody>
-                </table>
+          {/* Mês atual — mesma lista compacta, só com rótulo próprio */}
+          {currentGroup && (
+            <div>
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-brand/80">
+                Mês atual
+              </p>
+              <div className={`divide-y divide-line/50 overflow-hidden rounded-2xl ${surfaceCls}`}>
+                {renderMonthRow(currentGroup)}
               </div>
-              </HeightCollapse>
             </div>
-            );
-          })}
+          )}
+
+          {/* Outros meses — do mais recente pro mais antigo */}
+          {otherGroups.length > 0 && (
+            <div>
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted/70">
+                Outros meses
+              </p>
+              <div className={`divide-y divide-line/50 overflow-hidden rounded-2xl ${surfaceCls}`}>
+                {otherGroups.map((g) => renderMonthRow(g))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

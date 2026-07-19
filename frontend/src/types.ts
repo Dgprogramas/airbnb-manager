@@ -10,7 +10,7 @@ export interface Reservation {
   condoRegistered: boolean;
   apartmentInfoSent: boolean;
   status: 'pending' | 'complete';
-  source: 'manual' | 'airbnb-ical';
+  source: 'manual' | 'airbnb-ical' | 'airbnb-csv';
   icalUid: string | null;
   cancelledAt: string | null;
   createdAt: string;
@@ -25,6 +25,17 @@ export interface SyncResult {
   cancelledCount: number;
   created: Reservation[];
   cancelled: Reservation[];
+}
+
+// Resposta de POST /api/reservations/import-csv
+export interface ImportCsvResult {
+  staysFound: number;
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  ignoredRows: number;
+  created: Reservation[];
+  updated: Reservation[];
 }
 
 export interface NewReservation {

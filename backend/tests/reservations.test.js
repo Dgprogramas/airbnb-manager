@@ -62,6 +62,16 @@ test('list filtra por mês do check-in e por pendência', () => {
   assert.equal(reservations.list().length, 2);
 });
 
+test('list filtra por ano do check-in, sem misturar outros anos', () => {
+  createSample({ checkinDate: '2025-12-30', checkoutDate: '2026-01-02' });
+  createSample({ checkinDate: '2026-07-01', checkoutDate: '2026-07-03' });
+  createSample({ checkinDate: '2027-01-05', checkoutDate: '2027-01-07' });
+
+  assert.equal(reservations.list({ year: 2026 }).length, 1);
+  assert.equal(reservations.list({ year: 2025 }).length, 1);
+  assert.equal(reservations.list({ year: 2027 }).length, 1);
+});
+
 test('update mescla o patch sem apagar os demais campos', () => {
   const created = createSample();
   const updated = reservations.update(created.id, { grossAmount: 900, condoRegistered: true });

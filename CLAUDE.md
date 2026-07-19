@@ -23,7 +23,8 @@ Construída em **sprints pequenas e incrementais**, cada uma com critério de
   ajudarem de verdade (não perseguir "zero dependências"). O projeto começou
   100% nativo e foi modernizado depois.
 - **Backend:** Node.js + **Express** (roteamento), `cors` (CORS) e `node-ical`
-  (parse do iCal). **Node.js 22.5+** obrigatório.
+  (parse do iCal). **Node.js 22.9+** obrigatório (o `npm run dev`/`start`
+  carrega o `backend/.env` via `--env-file-if-exists`).
 - **Banco:** SQLite via `node:sqlite` (`DatabaseSync`) — mantido por já
   funcionar; a API é igual à do `better-sqlite3`, então trocar depois é
   trivial se necessário.
@@ -186,6 +187,8 @@ de `createdCount`/`skippedCount`.
 | 9 | Histórico de fechamentos persistido (tabela `closings`: mês, valores, pago/pendente) — protege contra recálculo retroativo se o split% mudar | Ideia |
 | 10 | Template de mensagem de check-in p/ WhatsApp (placeholders + botão wa.me / copiar) — automatiza o "enviar infos do apê" sem RPA | Ideia |
 | 11 | Dashboard: ocupação, receita por mês, diária média; alertas de check-in próximo sem condomínio/info | Ideia |
+| 12 | Seção "Últimas reservas" na tela de Reservas: estadias já finalizadas saem da tabela principal e vão pra uma seção própria abaixo, agrupadas por mês e recolhidas por padrão — a tabela principal fica só com o que precisa de ação (futuras/em andamento). Frontend-only: separa client-side pelo status derivado da estadia (Finalizada), reusando groupByMonth/HeightCollapse | Ideia (planejada em 18/07) |
+| 13 | Importação do relatório de ganhos do Airbnb (CSV) — `POST /api/reservations/import-csv` + botão "Importar CSV" na tela de Reservas. Complementa o iCal (que só traz datas e perde reservas passadas assim que saem do feed): o CSV traz nome e valor, e recupera histórico | ✅ Concluída (18/07) |
 
 Não implementar funcionalidades de sprints futuras antes da hora.
 
@@ -281,6 +284,69 @@ Dedicado**), disparada pela UI. Dividida em sub-sprints; progresso abaixo.
 - **Termos de uso:** ainda não revisados formalmente quanto a automação de
   acesso. Risco considerado baixo (credencial própria, vínculo legítimo com o
   condomínio), mas confirmar antes de rodar em produção com frequência.
+
+## Sprint 13 — Importação do CSV de ganhos do Airbnb (detalhes)
+
+**Motivação:** o Airbnb não tem API pública para host individual (só para
+parceiros de software com contrato). O único canal "oficial" é o iCal — mas
+o feed do Airbnb só traz reservas atuais/futuras: assim que o checkout de
+uma reserva passa, o evento **some do feed sozinho** (`ical-sync.js` já trata
+isso como comportamento esperado, não cancelamento). Resultado: reservas já
+finalizadas nunca são recuperadas por sync, e o iCal também não traz nome
+nem valor (só datas) mesmo para as que ainda estão no feed.
+
+RPA no painel do Airbnb foi descartado: diferente do portal do condomínio,
+o Airbnb é um alvo muito mais hostil (2FA/captcha, detecção de automação) e
+o ToS proíbe scraping — risco de suspensão de conta não compensa.
+
+**Solução adotada:** o Airbnb permite exportar o **relatório de ganhos em
+CSV** (Conta → Pagamentos → Relatórios de ganhos), que traz hóspede, datas
+e valor — inclusive de reservas passadas. `backend/src/services/airbnb-csv-import.js`
+(`importFromCsv`) faz o parse e casa cada linha com as reservas existentes
+pela `checkin_date` (o apartamento é único — não há duas reservas ativas no
+mesmo dia):
+
+- Sem correspondente → cria reserva nova (`status: 'complete'`,
+  `source: 'airbnb-csv'`).
+- Correspondente `pending` (veio do iCal, faltava nome/valor) → completa
+  com nome e valor do CSV, mantendo `source`/`icalUid` originais.
+- Correspondente já `complete` → **não sobrescreve** (evita apagar edição
+  manual do usuário). Reimportar o mesmo CSV é seguro (idempotente).
+- Reservas `cancelledAt` não entram no casamento por data (uma reserva nova
+  pode legitimamente ocupar a data de uma cancelada).
+
+**Parser do CSV:** próprio (RFC 4180 — aspas, vírgula dentro de campo,
+CRLF), sem depender de biblioteca externa, porque a necessidade é simples
+(um arquivo pequeno, sem streaming). Cabeçalhos são mapeados por apelidos
+em português e inglês (a conta do Airbnb pode estar em qualquer idioma).
+Datas `DD/MM/YYYY` vs `MM/DD/YYYY` são desambiguadas por heurística
+olhando o arquivo inteiro (se algum dia > 12, é `DD/MM`; senão assume
+`MM/DD`, formato mais comum do relatório). Valor aceita `R$ 1.234,56` e
+`$1,234.56`. Quando falta a coluna de término, calcula a partir de
+"noites". Linhas do mesmo código de confirmação são agregadas (ajustes de
+uma mesma reserva não viram reserva duplicada).
+
+**API:** `POST /api/reservations/import-csv` recebe `{ csv: string }` (o
+conteúdo do arquivo, lido no frontend com `File.text()` — não é upload
+multipart). Retorna contagens (`createdCount`/`updatedCount`/
+`skippedCount`/`ignoredRows`) e as reservas criadas/atualizadas. Erros de
+formato (CSV vazio, sem colunas esperadas, só cabeçalho) voltam como `400`.
+`server.js` aumentou o limite do `express.json()` para `2mb` por causa do
+tamanho do CSV.
+
+**UI:** botão "Importar CSV" na tela de Reservas, ao lado de "Sincronizar
+com Airbnb" — abre o seletor de arquivo do sistema (`<input type="file">`
+oculto) e mostra o resultado na mesma área de mensagem/erro já usada pelo
+sync do iCal.
+
+**Testes:** `backend/tests/airbnb-csv-import.test.js` cobre criação,
+completar pendente, não sobrescrever completa, idempotência, cálculo de
+checkout por noites, cabeçalho PT/EN, desambiguação de data, agregação por
+código de confirmação, linhas ignoradas e CSVs inválidos.
+
+**Decisão:** iCal e CSV coexistem — o iCal continua sendo o sync "quase em
+tempo real" de datas (pending), e o CSV é o complemento pra enriquecer com
+nome/valor e recuperar histórico. Nenhum dos dois substitui o outro.
 
 ## Padrão de commits
 

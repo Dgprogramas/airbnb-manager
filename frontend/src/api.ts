@@ -1,6 +1,7 @@
 import type {
   Closing,
   Expense,
+  ImportCsvResult,
   NewExpense,
   NewReservation,
   Reservation,
@@ -27,10 +28,11 @@ async function handle<T>(res: Response): Promise<T> {
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
 export async function listReservations(
-  params: { month?: string; pendingOnly?: boolean } = {}
+  params: { month?: string; year?: number; pendingOnly?: boolean } = {}
 ): Promise<Reservation[]> {
   const qs = new URLSearchParams();
   if (params.month) qs.set('month', params.month);
+  if (params.year) qs.set('year', String(params.year));
   if (params.pendingOnly) qs.set('pendingOnly', 'true');
   const query = qs.toString();
   return handle(await fetch(`/api/reservations${query ? `?${query}` : ''}`));
@@ -82,6 +84,16 @@ export async function syncReservations(icalUrl?: string): Promise<SyncResult> {
       method: 'POST',
       headers: jsonHeaders,
       body: JSON.stringify(icalUrl ? { icalUrl } : {}),
+    })
+  );
+}
+
+export async function importCsv(csv: string): Promise<ImportCsvResult> {
+  return handle(
+    await fetch('/api/reservations/import-csv', {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ csv }),
     })
   );
 }
